@@ -1,6 +1,6 @@
 # Distributed Video Transcoding Pipeline
 
-> **Status:** 🟡 In design / under construction — architecture is fully specified
+> **Status:**  In design / under construction — architecture is fully specified
 > (see [`docs/`](docs/)); implementation in progress.
 
 A distributed video-processing service that ingests a video, splits it into
@@ -177,7 +177,3 @@ sequenceDiagram
 Secrets are never committed. AWS access is via a **dedicated, least-privilege IAM user**
 scoped to a single bucket; credentials live only in a local, git-ignored `.env`. See the
 design notes for the full secrets/IAM approach.
-
-## License
-
-MIT — see [LICENSE](LICENSE).
