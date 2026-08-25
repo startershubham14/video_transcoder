@@ -1,0 +1,52 @@
+# ---- Secrets / environment (NEVER commit) ----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials
+aws.json
+
+# ---- Java / Maven ----
+target/
+*.class
+*.jar
+*.war
+!.mvn/wrapper/maven-wrapper.jar
+.mvn/timing.properties
+
+# ---- Gradle (if used instead) ----
+.gradle/
+build/
+
+# ---- IDE ----
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.project
+.classpath
+
+# ---- Local scratch / media (don't commit test videos or transcode output) ----
+scratch/
+tmp/
+*.mp4
+*.mov
+*.ts
+*.m3u8
+!docs/**/*.mp4
+
+# ---- Node (hls.js demo frontend, if added) ----
+node_modules/
+dist/
+npm-debug.log*
+
+# ---- OS ----
+.DS_Store
+Thumbs.db
+
+# ---- Logs ----
+*.log
+logs/
