@@ -1,0 +1,46 @@
+# Base configuration. Secrets and environment-specific values come from the environment
+# (see .env.example); nothing sensitive is committed here.
+spring:
+  application:
+    name: video-transcoder
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:transcoder}
+    username: ${POSTGRES_USER:transcoder}
+    password: ${POSTGRES_PASSWORD:change_me}
+  jpa:
+    hibernate:
+      ddl-auto: validate      # Flyway owns the schema; Hibernate only validates against it.
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: filesystem:db/migrations
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    listener:
+      simple:
+        prefetch: ${PREFETCH:1}          # spread backlog evenly, no hoarding
+        acknowledge-mode: manual         # ack only after work + state commit
+
+# Pipeline tuning knobs, bound by PipelineProperties. Defaults mirror .env.example.
+pipeline:
+  output-mode: ${OUTPUT_MODE:mp4}
+  segment-target-seconds: ${SEGMENT_TARGET_SECONDS:8}
+  max-duration-seconds: ${MAX_DURATION_SECONDS:300}
+  max-size-bytes: ${MAX_SIZE_BYTES:2147483648}
+  retry-max-attempts: ${RETRY_MAX_ATTEMPTS:3}
+  retry-backoff-seconds: ${RETRY_BACKOFF_SECONDS:2,8,30}
+  in-flight-job-cap: ${IN_FLIGHT_JOB_CAP:50}
+  upload-deadline-minutes: ${UPLOAD_DEADLINE_MINUTES:60}
+
+aws:
+  region: ${AWS_REGION:us-east-1}
+  s3:
+    bucket: ${AWS_S3_BUCKET:}
+    endpoint: ${AWS_S3_ENDPOINT:}        # set for MinIO; blank for real AWS
+
+clamav:
+  host: ${CLAMAV_HOST:localhost}
+  port: ${CLAMAV_PORT:3310}

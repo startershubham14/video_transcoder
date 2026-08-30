@@ -1,0 +1,37 @@
+name: CI
+
+# Enforces the "no green, no merge" rule from CLAUDE.md.
+# Uses the Maven preinstalled on the GitHub-hosted ubuntu runner (no wrapper yet).
+# GitHub-hosted ubuntu runners provide a Docker daemon, so Testcontainers
+# (Postgres + RabbitMQ integration tests) can run here without extra setup once added.
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Build and test
+        run: mvn -B verify
+
+      # Optional: publish test results even on failure
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: '**/target/surefire-reports/*.xml'
+          if-no-files-found: ignore
