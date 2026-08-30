@@ -1,9 +1,9 @@
 name: CI
 
 # Enforces the "no green, no merge" rule from CLAUDE.md.
-# Activates once the Spring Boot Maven project (pom.xml + mvnw) exists.
+# Uses the Maven preinstalled on the GitHub-hosted ubuntu runner (no wrapper yet).
 # GitHub-hosted ubuntu runners provide a Docker daemon, so Testcontainers
-# (Postgres + RabbitMQ integration tests) run here without extra setup.
+# (Postgres + RabbitMQ integration tests) can run here without extra setup once added.
 
 on:
   pull_request:
@@ -24,8 +24,8 @@ jobs:
           java-version: '21'
           cache: maven
 
-      - name: Build and test (unit + Testcontainers integration)
-        run: ./mvnw -B verify
+      - name: Build and test
+        run: mvn -B verify
 
       # Optional: publish test results even on failure
       - name: Upload test reports
