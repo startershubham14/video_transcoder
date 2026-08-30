@@ -162,6 +162,7 @@ sequenceDiagram
 ├── docs/                     # design notes + architecture
 ├── src/main/java/...         # Spring Boot API + workers (same codebase, profiles)
 ├── db/migrations/            # schema migrations (Flyway)
+├── .github/workflows/ci.yml  # CI: ./mvnw verify on every PR
 ├── docker-compose.yml        # api, worker, rabbitmq, postgres, clamav, (minio)
 ├── .env.example              # config template (no secrets)
 └── README.md
