@@ -6,6 +6,8 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.JdbcType;
+import org.hibernate.dialect.PostgreSQLEnumJdbcType;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -16,9 +18,6 @@ import java.util.UUID;
  * Maps the {@code jobs} table (see the schema in
  * {@code docs/architecture-and-workflow.md} §9). Probed metadata is filled in by the
  * prepare stage after ffprobe.
- *
- * <p>TODO: the {@code status} column is a Postgres {@code job_status} enum; wire the
- * appropriate type mapping (Hibernate {@code @JdbcType} / column definition).
  */
 @Entity
 @Table(name = "jobs")
@@ -30,8 +29,10 @@ public class Job {
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 
+    // Maps the Java enum to the Postgres `job_status` enum type from V1__init.sql.
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
+    @Column(nullable = false, columnDefinition = "job_status")
     private JobStatus status;
 
     /** S3 key of the uploaded source, e.g. {@code {id}/source.mp4}. */

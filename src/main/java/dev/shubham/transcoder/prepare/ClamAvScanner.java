@@ -7,11 +7,13 @@ import java.nio.file.Path;
 /**
  * Streams the source to the ClamAV daemon (INSTREAM) before splitting. A positive
  * detection fails the job ({@code infected}); nothing infected is ever split or encoded.
+ * The {@link VirusScanner} adapter.
  */
 @Service
-public class ClamAvScanner {
+public class ClamAvScanner implements VirusScanner {
 
     /** @return true if the file is clean, false if malware was detected. */
+    @Override
     public boolean isClean(Path file) {
         // TODO open socket to clamd host:port, INSTREAM the bytes, parse the verdict.
         throw new UnsupportedOperationException("not implemented");

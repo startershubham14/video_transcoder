@@ -1,4 +1,4 @@
-package dev.shubham.transcoder.job;
+package dev.shubham.transcoder.user;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 

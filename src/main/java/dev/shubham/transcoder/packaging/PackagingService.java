@@ -1,27 +1,43 @@
 package dev.shubham.transcoder.packaging;
 
+import dev.shubham.transcoder.config.PipelineProperties;
 import dev.shubham.transcoder.messaging.PackageTask;
+import dev.shubham.transcoder.storage.BlobStore;
+import dev.shubham.transcoder.transcode.SegmentRepository;
 import org.springframework.stereotype.Service;
 
 /**
- * Stage-3 orchestration for one rung: download that rung's encoded segments, concat to
- * MP4 or package to HLS per {@code pipeline.output-mode}, upload the outputs (plus the
- * master {@code .m3u8} for HLS), mark the rung done, and — when every rung is done —
- * flip the job to {@code COMPLETED} via a final guarded update.
+ * Stage-3 orchestration for one rung: download that rung's encoded segments, delegate to
+ * the {@link Packager} resolved from {@code pipeline.output-mode}, upload the outputs, mark
+ * the rung done, and — when every rung is done — flip the job to {@code COMPLETED} via a
+ * final guarded update (calling {@link Packager#finalizeJob} for the master manifest).
+ *
+ * <p>Resolves the strategy through {@link PackagerFactory}; it never branches on the mode
+ * itself.
  */
 @Service
 public class PackagingService {
 
-    private final Mp4Concatenator mp4Concatenator;
-    private final HlsPackager hlsPackager;
+    private final PackagerFactory packagerFactory;
+    private final PipelineProperties pipelineProperties;
+    private final BlobStore blobStore;
+    private final SegmentRepository segmentRepository;
 
-    public PackagingService(Mp4Concatenator mp4Concatenator, HlsPackager hlsPackager) {
-        this.mp4Concatenator = mp4Concatenator;
-        this.hlsPackager = hlsPackager;
+    public PackagingService(PackagerFactory packagerFactory,
+                            PipelineProperties pipelineProperties,
+                            BlobStore blobStore,
+                            SegmentRepository segmentRepository) {
+        this.packagerFactory = packagerFactory;
+        this.pipelineProperties = pipelineProperties;
+        this.blobStore = blobStore;
+        this.segmentRepository = segmentRepository;
     }
 
     public void packageRung(PackageTask task) {
-        // TODO download rung segments -> concat/package -> upload -> mark rung done -> maybe COMPLETED.
+        OutputMode mode = OutputMode.fromConfig(pipelineProperties.outputMode());
+        Packager packager = packagerFactory.forMode(mode);
+        // TODO download rung segments -> packager.packageRung(...) -> mark rung done ->
+        // TODO when all rungs done: packager.finalizeJob(...) and job -> COMPLETED.
         throw new UnsupportedOperationException("not implemented");
     }
 }

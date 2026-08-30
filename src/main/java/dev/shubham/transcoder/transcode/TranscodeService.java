@@ -1,6 +1,7 @@
 package dev.shubham.transcoder.transcode;
 
 import dev.shubham.transcoder.messaging.TranscodeTask;
+import dev.shubham.transcoder.storage.BlobStore;
 import org.springframework.stereotype.Service;
 
 /**
@@ -12,11 +13,15 @@ import org.springframework.stereotype.Service;
 @Service
 public class TranscodeService {
 
-    private final SegmentTranscoder segmentTranscoder;
+    private final Transcoder transcoder;
+    private final BlobStore blobStore;
     private final SegmentRepository segmentRepository;
 
-    public TranscodeService(SegmentTranscoder segmentTranscoder, SegmentRepository segmentRepository) {
-        this.segmentTranscoder = segmentTranscoder;
+    public TranscodeService(Transcoder transcoder,
+                            BlobStore blobStore,
+                            SegmentRepository segmentRepository) {
+        this.transcoder = transcoder;
+        this.blobStore = blobStore;
         this.segmentRepository = segmentRepository;
     }
 

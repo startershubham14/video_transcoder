@@ -13,13 +13,16 @@ import java.util.List;
  * <p>Option A (default): {@code -c copy} keyframe-snapped — cheap, uneven lengths.
  * Option B (fallback): force a fixed GOP grid, then split — uniform, at the cost of a
  * re-encode. Target length is {@code pipeline.segment-target-seconds}.
+ * The {@link Splitter} adapter.
  */
 @Service
-public class VideoSplitter {
+public class VideoSplitter implements Splitter {
 
     /** @return the produced segment files, in playback order. */
+    @Override
     public List<Path> split(Path sourceFile, int targetSeconds) {
         // TODO ffmpeg segment muxer, keyframe-snapped (-c copy) by default.
+        // TODO assemble args via a shared FfmpegCommandBuilder rather than string concat.
         throw new UnsupportedOperationException("not implemented");
     }
 }

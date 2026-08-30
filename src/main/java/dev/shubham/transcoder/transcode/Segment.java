@@ -7,6 +7,8 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import org.hibernate.annotations.JdbcType;
+import org.hibernate.dialect.PostgreSQLEnumJdbcType;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -15,8 +17,6 @@ import java.util.UUID;
  * One (rung × keyframe segment) unit of transcode work. Maps the {@code segments} table.
  * The {@code (job_id, rung, segment_index)} uniqueness makes fan-out idempotent — a
  * replayed prepare cannot create duplicate rows.
- *
- * <p>TODO: {@code status} is a Postgres {@code segment_status} enum; wire the type mapping.
  */
 @Entity
 @Table(name = "segments", uniqueConstraints =
@@ -36,8 +36,10 @@ public class Segment {
     @Column(name = "segment_index", nullable = false)
     private int segmentIndex;
 
+    // Maps the Java enum to the Postgres `segment_status` enum type from V1__init.sql.
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
+    @Column(nullable = false, columnDefinition = "segment_status")
     private SegmentStatus status;
 
     /** Redelivery counter, checked against {@code pipeline.retry-max-attempts}. */

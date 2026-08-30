@@ -1,6 +1,7 @@
 package dev.shubham.transcoder.prepare;
 
 import dev.shubham.transcoder.messaging.PrepareTask;
+import dev.shubham.transcoder.storage.BlobStore;
 import org.springframework.stereotype.Service;
 
 /**
@@ -8,28 +9,34 @@ import org.springframework.stereotype.Service;
  * enforce input limits → ClamAV scan → derive the output ladder → keyframe-aligned split →
  * insert segment rows per rung → commit {@code PROCESSING} → fan out transcode tasks.
  *
- * <p>Any of the guard steps failing transitions the job to {@code FAILED} with a reason.
+ * <p>Depends on the ports ({@link MediaProbe}, {@link VirusScanner}, {@link Splitter},
+ * {@link BlobStore}), never the vendor tools directly. Any guard step failing transitions
+ * the job to {@code FAILED} with a reason.
  */
 @Service
 public class PrepareService {
 
-    private final FfprobeService ffprobeService;
-    private final ClamAvScanner clamAvScanner;
-    private final VideoSplitter videoSplitter;
+    private final BlobStore blobStore;
+    private final MediaProbe mediaProbe;
+    private final VirusScanner virusScanner;
+    private final Splitter splitter;
     private final OutputLadderService outputLadderService;
 
-    public PrepareService(FfprobeService ffprobeService,
-                          ClamAvScanner clamAvScanner,
-                          VideoSplitter videoSplitter,
+    public PrepareService(BlobStore blobStore,
+                          MediaProbe mediaProbe,
+                          VirusScanner virusScanner,
+                          Splitter splitter,
                           OutputLadderService outputLadderService) {
-        this.ffprobeService = ffprobeService;
-        this.clamAvScanner = clamAvScanner;
-        this.videoSplitter = videoSplitter;
+        this.blobStore = blobStore;
+        this.mediaProbe = mediaProbe;
+        this.virusScanner = virusScanner;
+        this.splitter = splitter;
         this.outputLadderService = outputLadderService;
     }
 
     public void prepare(PrepareTask task) {
-        // TODO probe -> limit checks -> scan -> ladder -> split -> insert segments -> fan-out.
+        // TODO download -> probe -> limit checks -> scan -> ladder -> split -> insert segments -> fan-out.
+        // TODO consider a validation Chain (probe-valid, within-limits, clean) as guards multiply.
         throw new UnsupportedOperationException("not implemented");
     }
 }

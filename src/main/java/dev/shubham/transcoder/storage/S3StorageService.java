@@ -13,12 +13,14 @@ import java.util.List;
  * the app only issues those URLs and moves control messages.
  *
  * <p>Presigned URLs are minted on demand and never persisted (they expire). Postgres
- * stores the durable object <em>key</em>.
+ * stores the durable object <em>key</em>. This is the {@link BlobStore} adapter — app
+ * code depends on the port, not on this class or the AWS SDK.
  */
 @Service
-public class S3StorageService {
+public class S3StorageService implements BlobStore {
 
     /** Initiate a multipart upload and return per-part presigned PUT URLs. */
+    @Override
     public List<URL> initiateMultipartUpload(String key, int partCount, Duration ttl) {
         // TODO CreateMultipartUpload + presign each UploadPart.
         throw new UnsupportedOperationException("not implemented");
