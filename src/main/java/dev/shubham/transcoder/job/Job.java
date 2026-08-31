@@ -8,9 +8,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.Generated;
-import org.hibernate.annotations.JdbcType;
 import org.hibernate.annotations.UpdateTimestamp;
-import org.hibernate.dialect.PostgreSQLEnumJdbcType;
 import org.hibernate.generator.EventType;
 
 import java.math.BigDecimal;
@@ -53,10 +51,10 @@ public class Job {
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 
-    // Maps the Java enum to the Postgres `job_status` enum type from V1__init.sql.
+    // Persisted as the enum name in a varchar column (see V2). Plain STRING mapping avoids
+    // the per-type SQL cast that native Postgres enums force in bulk JPQL updates.
     @Enumerated(EnumType.STRING)
-    @JdbcType(PostgreSQLEnumJdbcType.class)
-    @Column(nullable = false, columnDefinition = "job_status")
+    @Column(nullable = false, length = 32)
     private JobStatus status;
 
     /** S3 key of the uploaded source, e.g. {@code {id}/source.mp4}. */
