@@ -13,15 +13,15 @@ import org.springframework.web.servlet.HandlerInterceptor;
 @Component
 public class AdmissionControlInterceptor implements HandlerInterceptor {
 
-    private final AdmissionPolicy admissionPolicy;
+    private final JobService jobService;
 
-    public AdmissionControlInterceptor(AdmissionPolicy admissionPolicy) {
-        this.admissionPolicy = admissionPolicy;
+    public AdmissionControlInterceptor(JobService jobService) {
+        this.jobService = jobService;
     }
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
-        // TODO if (!admissionPolicy.canAdmit()) { set 429 + Retry-After; return false; }
+        // TODO if (!jobService.canAdmit()) { set 429 + Retry-After; return false; }
         throw new UnsupportedOperationException("not implemented");
     }
 }

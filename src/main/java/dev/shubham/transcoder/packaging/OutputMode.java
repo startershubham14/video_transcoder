@@ -7,10 +7,5 @@ package dev.shubham.transcoder.packaging;
  */
 public enum OutputMode {
     MP4,
-    HLS;
-
-    /** Parse the {@code pipeline.output-mode} config value (case-insensitive). */
-    public static OutputMode fromConfig(String value) {
-        return OutputMode.valueOf(value.trim().toUpperCase());
-    }
+    HLS
 }
