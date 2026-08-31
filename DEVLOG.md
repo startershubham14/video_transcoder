@@ -113,28 +113,3 @@ exercise `V1__init.sql` against a real Postgres.
 
 **Still unverified here:** the Hibernate side (that `@Generated` on the id reads back correctly
 at boot) needs a Spring run / Testcontainers — no Maven in this environment. The DB half is proven.
-
----
-
-## 2026-08-31 — Toolchain installed; first real build green; Maven wrapper added
-
-**Branch:** `claude/project-setup-empty-classes-86ad1c` (published to `dev`)
-
-**Goal:** Install the build toolchain/dependencies and make the project build locally, then
-close the deferred Maven-wrapper follow-up.
-
-**Done:**
-- Installed (user-local, no admin) under `C:\Users\Shubham\devtools`: **Maven 3.9.9** and
-  **Temurin JDK 21.0.12** (only JDK 17 was present; project targets 21). Resolved all pom
-  dependencies into `~/.m2`.
-- **First real compile is green:** `mvn -B verify` → BUILD SUCCESS — 61 sources compiled at
-  release 21; 14 tests (0 failures, 4 skipped `@Disabled`); runnable jar produced. This
-  validates the whole conformance refactor, the entity redesign, and the DB-side `@Generated`
-  id mapping at the ORM/boot-compile level (no live DB needed for these tests).
-- **Maven wrapper added** (`mvnw`/`mvnw.cmd`, `only-script` type → no committed jar, pinned to
-  3.9.9). CI switched back to `./mvnw -B verify`. Added `.gitattributes` pinning `mvnw` to LF
-  (Linux CI shebang) and `mvnw.cmd` to CRLF; `mvnw` committed with the executable bit.
-
-**Follow-ups closed:** Maven wrapper (done). **Remaining:** runtime topology
-(`docker-compose`/`Dockerfile`/nginx), RabbitMQ topology beans, first vertical slice, and a
-Testcontainers integration test to exercise Flyway + the entity mappings against a live DB.
