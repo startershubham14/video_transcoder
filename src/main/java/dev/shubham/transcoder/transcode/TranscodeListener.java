@@ -6,7 +6,9 @@ import com.rabbitmq.client.Channel;
 import dev.shubham.transcoder.messaging.QueueNames;
 import dev.shubham.transcoder.messaging.TranscodeTask;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.amqp.support.AmqpHeaders;
 import org.springframework.context.annotation.Profile;
+import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 
 /**
