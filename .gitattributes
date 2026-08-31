@@ -1,0 +1,4 @@
+# Keep the Maven wrapper POSIX shell script LF so it runs on Linux CI runners.
+mvnw text eol=lf
+# The Windows batch wrapper stays CRLF.
+mvnw.cmd text eol=crlf

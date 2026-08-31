@@ -1,7 +1,7 @@
 name: CI
 
 # Enforces the "no green, no merge" rule from CLAUDE.md.
-# Uses the Maven preinstalled on the GitHub-hosted ubuntu runner (no wrapper yet).
+# Builds via the committed Maven wrapper (./mvnw) so the Maven version is pinned.
 # GitHub-hosted ubuntu runners provide a Docker daemon, so Testcontainers
 # (Postgres + RabbitMQ integration tests) can run here without extra setup once added.
 
@@ -25,7 +25,7 @@ jobs:
           cache: maven
 
       - name: Build and test
-        run: mvn -B verify
+        run: ./mvnw -B verify
 
       # Optional: publish test results even on failure
       - name: Upload test reports
