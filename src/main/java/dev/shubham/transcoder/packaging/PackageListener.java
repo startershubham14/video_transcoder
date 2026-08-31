@@ -2,10 +2,13 @@ package dev.shubham.transcoder.packaging;
 
 import dev.shubham.transcoder.messaging.AbstractStageWorker;
 import dev.shubham.transcoder.messaging.ErrorClassifier;
+import com.rabbitmq.client.Channel;
 import dev.shubham.transcoder.messaging.PackageTask;
 import dev.shubham.transcoder.messaging.QueueNames;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.amqp.support.AmqpHeaders;
 import org.springframework.context.annotation.Profile;
+import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 
 /**
@@ -26,8 +29,9 @@ public class PackageListener extends AbstractStageWorker<PackageTask> {
     }
 
     @RabbitListener(queues = QueueNames.CONCAT_QUEUE)
-    public void onPackage(PackageTask task) {
-        execute(task);
+    public void onPackage(PackageTask task, Channel channel,
+                          @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag) {
+        execute(task, channel, deliveryTag);
     }
 
     @Override
