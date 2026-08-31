@@ -12,8 +12,8 @@ import java.util.List;
  */
 public interface BlobStore {
 
-    /** Initiate a multipart upload and return per-part presigned PUT URLs. */
-    List<URL> initiateMultipartUpload(String key, int partCount, Duration ttl);
+    /** Initiate a multipart upload; returns the upload id and per-part presigned PUT URLs. */
+    PresignedMultipartUpload initiateMultipartUpload(String key, int partCount, Duration ttl);
 
     /** Complete the multipart upload; authoritative success signal for an upload. */
     void completeMultipartUpload(String key, String uploadId, List<String> partETags);

@@ -39,7 +39,8 @@ aws:
   region: ${AWS_REGION:us-east-1}
   s3:
     bucket: ${AWS_S3_BUCKET:}
-    endpoint: ${AWS_S3_ENDPOINT:}        # set for MinIO; blank for real AWS
+    endpoint: ${AWS_S3_ENDPOINT:}                     # set for MinIO; blank for real AWS
+    part-size-bytes: ${AWS_S3_PART_SIZE_BYTES:16777216}  # 16 MiB; drives presigned part count
 
 clamav:
   host: ${CLAMAV_HOST:localhost}
