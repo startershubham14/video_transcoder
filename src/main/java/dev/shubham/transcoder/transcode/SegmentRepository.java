@@ -18,6 +18,13 @@ public interface SegmentRepository extends JpaRepository<Segment, UUID> {
 
     List<Segment> findByJobIdAndRung(UUID jobId, String rung);
 
+    /** A rung's segments in playback order (for concat / playlist assembly). */
+    List<Segment> findByJobIdAndRungOrderBySegmentIndexAsc(UUID jobId, String rung);
+
+    /** Distinct rungs produced for a job (the ladder that prepare derived). */
+    @Query("select distinct s.rung from Segment s where s.jobId = :jobId")
+    List<String> findDistinctRungs(@Param("jobId") UUID jobId);
+
     /**
      * Mark a QUEUED segment PROCESSING (observability). Idempotent — a redelivery of an
      * already-PROCESSING/DONE segment affects 0 rows.

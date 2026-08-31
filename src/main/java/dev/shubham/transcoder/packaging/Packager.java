@@ -19,6 +19,13 @@ public interface Packager {
     /** Which output mode this strategy handles. Used by the factory to register it. */
     OutputMode mode();
 
+    /**
+     * Deterministic storage key of this rung's primary output (the artifact whose existence
+     * means "this rung is packaged"). MP4: {@code {jobId}/{rung}.mp4}; HLS: the media playlist.
+     * Not stored in the DB — computed from {@code jobId} + rung (see CLAUDE.md).
+     */
+    String outputKey(UUID jobId, String rung);
+
     /** Concat/package one rung's ordered segments and write its output(s) to storage. */
     void packageRung(UUID jobId, String rung, List<Path> orderedSegments);
 

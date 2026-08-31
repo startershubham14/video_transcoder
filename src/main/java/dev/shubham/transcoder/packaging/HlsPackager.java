@@ -20,6 +20,11 @@ public class HlsPackager implements Packager {
     }
 
     @Override
+    public String outputKey(UUID jobId, String rung) {
+        return jobId + "/hls/" + rung + ".m3u8";
+    }
+
+    @Override
     public void packageRung(UUID jobId, String rung, List<Path> orderedSegments) {
         // TODO write .ts + media .m3u8 for the rung; upload outputs.
         throw new UnsupportedOperationException("not implemented");
