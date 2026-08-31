@@ -1,0 +1,6 @@
+# Transcode profile: runs only the transcode listener — its own pool, scaled with
+# `docker compose up --scale transcode-worker=N`, isolated from the prepare pool so a
+# transcode backlog can't starve new jobs. No HTTP endpoints.
+spring:
+  main:
+    web-application-type: none

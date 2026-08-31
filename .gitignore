@@ -50,3 +50,7 @@ Thumbs.db
 # ---- Logs ----
 *.log
 logs/
+
+# ---- Local-only project docs (kept out of the repo by request) ----
+CLAUDE.md
+DEVLOG.md

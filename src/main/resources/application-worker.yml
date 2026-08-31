@@ -1,0 +1,5 @@
+# Worker profile: runs the prepare + package listeners (the small, fixed pool).
+# No HTTP endpoints — workers only consume from RabbitMQ and touch Postgres/S3.
+spring:
+  main:
+    web-application-type: none

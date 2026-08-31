@@ -5,15 +5,18 @@ import dev.shubham.transcoder.messaging.ErrorClassifier;
 import dev.shubham.transcoder.messaging.QueueNames;
 import dev.shubham.transcoder.messaging.TranscodeTask;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 /**
  * Stage-2 listener (transport only) — the horizontally scaled pool
  * ({@code --scale transcode-worker=N}). Prefetch=1 spreads the backlog evenly. The
  * ack/retry/dead-letter skeleton is inherited from {@link AbstractStageWorker}; this class
- * only binds the queue and delegates to {@link TranscodeHandler}.
+ * only binds the queue and delegates to {@link TranscodeHandler}. Active in the
+ * {@code transcode} profile (its own pool, isolated from prepare).
  */
 @Component
+@Profile("transcode")
 public class TranscodeListener extends AbstractStageWorker<TranscodeTask> {
 
     private final TranscodeHandler transcodeHandler;
