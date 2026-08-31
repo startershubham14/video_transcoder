@@ -39,7 +39,8 @@ aws:
   region: ${AWS_REGION:us-east-1}
   s3:
     bucket: ${AWS_S3_BUCKET:}
-    endpoint: ${AWS_S3_ENDPOINT:}                     # set for MinIO; blank for real AWS
+    endpoint: ${AWS_S3_ENDPOINT:}                     # app→storage; set for MinIO, blank for AWS
+    public-endpoint: ${AWS_S3_PUBLIC_ENDPOINT:}       # client-reachable host for presigned URLs
     part-size-bytes: ${AWS_S3_PART_SIZE_BYTES:16777216}  # 16 MiB; drives presigned part count
 
 clamav:

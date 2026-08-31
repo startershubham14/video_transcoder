@@ -24,6 +24,8 @@ x-app-environment: &app-environment
   AWS_REGION: ${AWS_REGION:-us-east-1}
   AWS_S3_BUCKET: ${AWS_S3_BUCKET:-transcoder}
   AWS_S3_ENDPOINT: http://minio:9000
+  # Presigned URLs are handed to clients; make them reachable from the host (published :9000).
+  AWS_S3_PUBLIC_ENDPOINT: ${AWS_S3_PUBLIC_ENDPOINT:-http://localhost:9000}
   AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-minioadmin}
   AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-minioadmin}
   OUTPUT_MODE: ${OUTPUT_MODE:-mp4}
