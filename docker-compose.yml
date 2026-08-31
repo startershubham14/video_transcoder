@@ -117,7 +117,8 @@ services:
       SPRING_PROFILES_ACTIVE: api
     depends_on: *app-depends
     ports:
-      - "8080:8080"
+      # Host port is overridable to avoid a conflict: API_PORT=8081 docker compose up
+      - "${API_PORT:-8080}:8080"
 
   worker:
     build: .
