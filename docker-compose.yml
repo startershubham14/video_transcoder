@@ -102,6 +102,9 @@ services:
     image: clamav/clamav:latest
     # First start downloads virus definitions (~1–2 min); the prepare stage needs this,
     # but the app boots without it (the scanner is only called mid-pipeline).
+    volumes:
+      # Raise StreamMaxLength etc. to the input cap so large uploads can be scanned.
+      - ./docker/clamav/clamd.conf:/etc/clamav/clamd.conf
     healthcheck:
       test: ["CMD", "clamdcheck.sh"]
       interval: 30s
