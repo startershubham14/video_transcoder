@@ -86,3 +86,30 @@ structural check + old-name/setter sweep run clean (66 java files).
 **Open follow-ups:** unchanged from the previous entry except the naming-conformance item is
 now **done** — remaining: runtime topology (`docker-compose`/`Dockerfile`/nginx), Maven
 wrapper, RabbitMQ topology beans, first vertical slice.
+
+---
+
+## 2026-08-31 — Strict DB-side UUID generation + migration verified on real Postgres
+
+**Branch:** `claude/project-setup-empty-classes-86ad1c` (published to `dev`)
+
+**Goal:** Per request, make id generation strictly DB-side (not app-side), and actually
+exercise `V1__init.sql` against a real Postgres.
+
+**Changes:**
+- Entities `Job`/`Segment`/`User`: replaced Hibernate `@UuidGenerator` (app-side) with
+  `@Generated(event = EventType.INSERT)` + `@Column(name="id", updatable=false)`, so the DB's
+  `gen_random_uuid()` default produces the id and Hibernate reads it back (INSERT … RETURNING).
+- **Migration fix:** dropped `CREATE EXTENSION pgcrypto` — `gen_random_uuid()` is core since
+  Postgres 13, so the extension is unnecessary and it also required a privilege the app DB user
+  doesn't have (`dbuser123` got "permission denied to create extension").
+
+**Verification (real Postgres 18.4, local, user `dbuser123`):**
+- Created a throwaway db owned by the user, ran `V1__init.sql`: all types/tables/indexes created.
+- Inserted rows with **no id** → DB generated UUIDs (confirmed via `RETURNING`); defaults
+  `jobs.status=AWAITING_UPLOAD`, `segments.status=QUEUED`; `id` is `uuid`, `status` columns use
+  the `job_status`/`segment_status` enum types; the atomic fan-in `UPDATE` parses and runs.
+- Dropped the throwaway db — zero footprint. (Credentials were a local throwaway; not committed.)
+
+**Still unverified here:** the Hibernate side (that `@Generated` on the id reads back correctly
+at boot) needs a Spring run / Testcontainers — no Maven in this environment. The DB half is proven.

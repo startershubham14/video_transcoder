@@ -1,8 +1,9 @@
 -- Initial schema for the transcoding pipeline.
 -- Mirrors docs/architecture-and-workflow.md §9. jobs + segments are the source of
 -- truth for state; the per-rung fan-in is an atomic UPDATE against these tables.
-
-CREATE EXTENSION IF NOT EXISTS pgcrypto;   -- gen_random_uuid()
+--
+-- gen_random_uuid() is built into core Postgres since v13 — no pgcrypto extension
+-- required (which also avoids needing a superuser / db-owner to install it).
 
 CREATE TYPE job_status AS ENUM
   ('AWAITING_UPLOAD','PREPARING','PROCESSING','CONCATENATING','COMPLETED','FAILED','EXPIRED');

@@ -5,7 +5,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.annotations.Generated;
+import org.hibernate.generator.EventType;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -17,8 +18,11 @@ import java.util.UUID;
 @Table(name = "users")
 public class User {
 
+    // DB generates the id via the `gen_random_uuid()` default in V1__init.sql; Hibernate
+    // excludes it from INSERT and reads the generated value back.
     @Id
-    @UuidGenerator
+    @Generated(event = EventType.INSERT)
+    @Column(name = "id", nullable = false, updatable = false)
     private UUID id;
 
     @Column(nullable = false, unique = true)

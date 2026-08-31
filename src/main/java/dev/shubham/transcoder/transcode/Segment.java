@@ -8,10 +8,11 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Generated;
 import org.hibernate.annotations.JdbcType;
 import org.hibernate.annotations.UpdateTimestamp;
-import org.hibernate.annotations.UuidGenerator;
 import org.hibernate.dialect.PostgreSQLEnumJdbcType;
+import org.hibernate.generator.EventType;
 
 import java.time.Instant;
 import java.util.EnumMap;
@@ -41,8 +42,11 @@ public class Segment {
         LEGAL.put(SegmentStatus.FAILED, EnumSet.noneOf(SegmentStatus.class));
     }
 
+    // DB generates the id via the `gen_random_uuid()` default in V1__init.sql; Hibernate
+    // excludes it from INSERT and reads the generated value back.
     @Id
-    @UuidGenerator
+    @Generated(event = EventType.INSERT)
+    @Column(name = "id", nullable = false, updatable = false)
     private UUID id;
 
     @Column(name = "job_id", nullable = false)
