@@ -1,0 +1,138 @@
+# Full local stack. The API and the two worker pools are the SAME image; the Spring
+# profile (api | worker | transcode) selects the role. Values come from the shell / an
+# optional .env (see .env.example); the defaults below make `docker compose up` work
+# out of the box against local MinIO.
+#
+#   docker compose up --build
+#   docker compose up --scale transcode-worker=5    # the scaling demo
+
+name: video-transcoder
+
+# ---- shared app config (merged into each app service) ----
+x-app-environment: &app-environment
+  POSTGRES_HOST: postgres
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: ${POSTGRES_DB:-transcoder}
+  POSTGRES_USER: ${POSTGRES_USER:-transcoder}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me}
+  RABBITMQ_HOST: rabbitmq
+  RABBITMQ_PORT: "5672"
+  RABBITMQ_USER: ${RABBITMQ_USER:-guest}
+  RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+  CLAMAV_HOST: clamav
+  CLAMAV_PORT: "3310"
+  AWS_REGION: ${AWS_REGION:-us-east-1}
+  AWS_S3_BUCKET: ${AWS_S3_BUCKET:-transcoder}
+  AWS_S3_ENDPOINT: http://minio:9000
+  AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-minioadmin}
+  AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-minioadmin}
+  OUTPUT_MODE: ${OUTPUT_MODE:-mp4}
+
+x-app-depends: &app-depends
+  postgres:
+    condition: service_healthy
+  rabbitmq:
+    condition: service_healthy
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-transcoder}
+      POSTGRES_USER: ${POSTGRES_USER:-transcoder}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-transcoder} -d ${POSTGRES_DB:-transcoder}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+    ports:
+      - "5672:5672"
+      - "15672:15672"   # management UI
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${AWS_ACCESS_KEY_ID:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${AWS_SECRET_ACCESS_KEY:-minioadmin}
+    ports:
+      - "9000:9000"
+      - "9001:9001"     # console
+    volumes:
+      - miniodata:/data
+
+  # Creates the bucket once MinIO is reachable, then exits.
+  minio-setup:
+    image: minio/mc:latest
+    depends_on:
+      - minio
+    environment:
+      MINIO_ROOT_USER: ${AWS_ACCESS_KEY_ID:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${AWS_SECRET_ACCESS_KEY:-minioadmin}
+      BUCKET: ${AWS_S3_BUCKET:-transcoder}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - >
+        until mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}"; do
+          echo 'waiting for minio...'; sleep 2;
+        done;
+        mc mb --ignore-existing "local/$${BUCKET}";
+        echo "bucket $${BUCKET} ready";
+
+  clamav:
+    image: clamav/clamav:latest
+    # First start downloads virus definitions (~1–2 min); the prepare stage needs this,
+    # but the app boots without it (the scanner is only called mid-pipeline).
+    healthcheck:
+      test: ["CMD", "clamdcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 180s
+
+  api:
+    build: .
+    image: video-transcoder:latest
+    environment:
+      <<: *app-environment
+      SPRING_PROFILES_ACTIVE: api
+    depends_on: *app-depends
+    ports:
+      - "8080:8080"
+
+  worker:
+    build: .
+    image: video-transcoder:latest
+    environment:
+      <<: *app-environment
+      SPRING_PROFILES_ACTIVE: worker
+    depends_on: *app-depends
+
+  transcode-worker:
+    build: .
+    image: video-transcoder:latest
+    environment:
+      <<: *app-environment
+      SPRING_PROFILES_ACTIVE: transcode
+    depends_on: *app-depends
+
+volumes:
+  pgdata:
+  miniodata:
