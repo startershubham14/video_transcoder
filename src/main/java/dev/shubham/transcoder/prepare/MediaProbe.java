@@ -4,7 +4,7 @@ import java.nio.file.Path;
 
 /**
  * Port for media inspection. Keeps prepare-stage code off the ffprobe binary directly.
- * The concrete adapter is {@link FfprobeService}.
+ * The concrete adapter is {@link FfprobeMediaProbe}.
  */
 public interface MediaProbe {
 

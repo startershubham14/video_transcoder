@@ -3,7 +3,7 @@ package dev.shubham.transcoder.prepare;
 import java.nio.file.Path;
 
 /**
- * Port for malware scanning. The concrete adapter is {@link ClamAvScanner}.
+ * Port for malware scanning. The concrete adapter is {@link ClamAvVirusScanner}.
  */
 public interface VirusScanner {
 

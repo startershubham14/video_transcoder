@@ -8,19 +8,19 @@ import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
 /**
- * Stage-1 consumer. Runs as a small, fixed pool kept separate from the transcode pool so
- * a transcode backlog can't starve incoming jobs (head-of-line-blocking fix). The
- * ack/retry/dead-letter skeleton is inherited from {@link AbstractStageWorker}; this class
- * only binds the queue and supplies the stage body.
+ * Stage-1 listener (transport only). Runs as a small, fixed pool kept separate from the
+ * transcode pool so a transcode backlog can't starve incoming jobs (head-of-line-blocking
+ * fix). The ack/retry/dead-letter skeleton is inherited from {@link AbstractStageWorker};
+ * this class only binds the queue and delegates to {@link PrepareHandler}.
  */
 @Component
-public class PrepareWorker extends AbstractStageWorker<PrepareTask> {
+public class PrepareListener extends AbstractStageWorker<PrepareTask> {
 
-    private final PrepareService prepareService;
+    private final PrepareHandler prepareHandler;
 
-    public PrepareWorker(ErrorClassifier errorClassifier, PrepareService prepareService) {
+    public PrepareListener(ErrorClassifier errorClassifier, PrepareHandler prepareHandler) {
         super(errorClassifier);
-        this.prepareService = prepareService;
+        this.prepareHandler = prepareHandler;
     }
 
     @RabbitListener(queues = QueueNames.PREPARE_QUEUE)
@@ -30,7 +30,7 @@ public class PrepareWorker extends AbstractStageWorker<PrepareTask> {
 
     @Override
     protected void process(PrepareTask task) {
-        prepareService.prepare(task);
+        prepareHandler.prepare(task);
     }
 
     @Override

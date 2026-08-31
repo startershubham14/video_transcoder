@@ -20,21 +20,21 @@ import java.util.UUID;
 @RestController
 public class UploadController {
 
-    private final UploadService uploadService;
+    private final UploadHandler uploadHandler;
 
-    public UploadController(UploadService uploadService) {
-        this.uploadService = uploadService;
+    public UploadController(UploadHandler uploadHandler) {
+        this.uploadHandler = uploadHandler;
     }
 
     @PostMapping("/uploads")
-    public CreateUploadResponse create(@Valid @RequestBody CreateUploadRequest request) {
-        return uploadService.createUpload(request.filename(), request.sizeBytes(), request.contentType());
+    public CreateUploadResponse createUpload(@Valid @RequestBody CreateUploadRequest request) {
+        return uploadHandler.createUpload(request.filename(), request.sizeBytes(), request.contentType());
     }
 
     @PostMapping("/jobs/{id}/complete")
-    public ResponseEntity<Void> complete(@PathVariable("id") UUID jobId,
-                                         @Valid @RequestBody CompleteUploadRequest request) {
-        uploadService.completeUpload(jobId, request);
+    public ResponseEntity<Void> completeUpload(@PathVariable("id") UUID jobId,
+                                               @Valid @RequestBody CompleteUploadRequest request) {
+        uploadHandler.completeUpload(jobId, request);
         return ResponseEntity.status(HttpStatus.ACCEPTED).build(); // 202 PREPARING
     }
 }

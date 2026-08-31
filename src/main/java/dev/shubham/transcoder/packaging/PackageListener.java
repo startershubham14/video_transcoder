@@ -8,18 +8,18 @@ import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
 /**
- * Stage-3 consumer. Triggered once per rung by the worker that won the fan-in claim. The
- * ack/retry/dead-letter skeleton is inherited from {@link AbstractStageWorker}; this class
- * only binds the queue and supplies the stage body.
+ * Stage-3 listener (transport only). Triggered once per rung by the worker that won the fan-in
+ * claim. The ack/retry/dead-letter skeleton is inherited from {@link AbstractStageWorker};
+ * this class only binds the queue and delegates to {@link PackageHandler}.
  */
 @Component
-public class PackageWorker extends AbstractStageWorker<PackageTask> {
+public class PackageListener extends AbstractStageWorker<PackageTask> {
 
-    private final PackagingService packagingService;
+    private final PackageHandler packageHandler;
 
-    public PackageWorker(ErrorClassifier errorClassifier, PackagingService packagingService) {
+    public PackageListener(ErrorClassifier errorClassifier, PackageHandler packageHandler) {
         super(errorClassifier);
-        this.packagingService = packagingService;
+        this.packageHandler = packageHandler;
     }
 
     @RabbitListener(queues = QueueNames.CONCAT_QUEUE)
@@ -29,7 +29,7 @@ public class PackageWorker extends AbstractStageWorker<PackageTask> {
 
     @Override
     protected void process(PackageTask task) {
-        packagingService.packageRung(task);
+        packageHandler.packageRung(task);
     }
 
     @Override

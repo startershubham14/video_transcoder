@@ -45,3 +45,44 @@ the design docs and, once supplied, `CLAUDE.md`.
   `--scale transcode-worker=N` scaling demo.
 - Add the Maven wrapper; wire real RabbitMQ topology beans; first vertical slice
   (one video → one rung → MP4).
+
+---
+
+## 2026-08-31 — Conform scaffold to CLAUDE.md naming & entity conventions
+
+**Branch:** `claude/project-setup-empty-classes-86ad1c` (published to `dev`)
+
+**Goal:** Close the naming/entity divergences between the scaffold and the now-authoritative
+`CLAUDE.md` while everything is still stubs (cheapest time; no setter is called yet). Resolves
+the "conform to CLAUDE.md naming" follow-up from the previous entry.
+
+**Steps & key decisions:**
+- **Adapters → technology+port names:** `S3StorageService`→`S3BlobStore`,
+  `FfprobeService`→`FfprobeMediaProbe`, `ClamAvScanner`→`ClamAvVirusScanner`,
+  `VideoSplitter`→`FfmpegSplitter`, `SegmentTranscoder`→`FfmpegTranscoder`. Injections already
+  used the ports, so blast radius was each impl file + one `@link` per port.
+- **Stage split by role:** `<Stage>Service`→`<Stage>Handler` (logic), `<Stage>Worker`→
+  `<Stage>Listener` (transport, still `extends AbstractStageWorker`). `PackagingService`→
+  `PackageHandler`.
+- **`OutputLadderService`→`LadderPolicy`** (Strategy) + real impl `FixedLadderPolicy`
+  (rungs strictly below source height, no upscaling) — first non-stub logic, unit-tested.
+- **`JobService` split:** `AdmissionPolicy` (`canAdmit`) + `JobStatusService` (`getStatus`).
+  `UploadService`→`UploadHandler`. `ClamAvConfig`→`ClamAvProperties`. Controller methods →
+  action names (`getJobStatus`, `createUpload`, `completeUpload`).
+- **Entities → factory + guarded transitions:** `Job.create`/`Segment.create`/`User.create`;
+  guarded `transitionTo` + intent verbs (`markProcessing`, `markDone`, `failWith`, …); removed
+  all public setters incl. `setStatus`. Ids via Hibernate `@UuidGenerator`; timestamps via
+  `@CreationTimestamp`/`@UpdateTimestamp`. **Decision:** used app-side `@UuidGenerator` (the
+  robust, canonical Hibernate 6 form) rather than a fragile DB-`gen_random_uuid()` read-back
+  mapping I couldn't verify without a live DB; the migration keeps `gen_random_uuid()` as the
+  column default. Revisit if strict DB-generation is required.
+- **`SegmentRepository.tryClaimPackaging`** now carries the real native atomic fan-in SQL
+  (was a TODO). `BlobStore.headObjectSize`→`objectSize`.
+- Added pure-logic unit tests: `JobTransitionTest`, `FixedLadderPolicyTest`.
+
+**Gotchas:** no Maven locally → CI (`mvn -B verify`) is still the first real compile;
+structural check + old-name/setter sweep run clean (66 java files).
+
+**Open follow-ups:** unchanged from the previous entry except the naming-conformance item is
+now **done** — remaining: runtime topology (`docker-compose`/`Dockerfile`/nginx), Maven
+wrapper, RabbitMQ topology beans, first vertical slice.

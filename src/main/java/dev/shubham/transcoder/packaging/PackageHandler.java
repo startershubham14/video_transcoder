@@ -7,26 +7,26 @@ import dev.shubham.transcoder.transcode.SegmentRepository;
 import org.springframework.stereotype.Service;
 
 /**
- * Stage-3 orchestration for one rung: download that rung's encoded segments, delegate to
- * the {@link Packager} resolved from {@code pipeline.output-mode}, upload the outputs, mark
- * the rung done, and — when every rung is done — flip the job to {@code COMPLETED} via a
- * final guarded update (calling {@link Packager#finalizeJob} for the master manifest).
+ * Stage-3 orchestration + state for one rung: download that rung's encoded segments, delegate
+ * to the {@link Packager} resolved from {@code pipeline.output-mode}, upload the outputs, mark
+ * the rung done, and — when every rung is done — flip the job to {@code COMPLETED} via a final
+ * guarded update (calling {@link Packager#finalizeJob} for the master manifest).
  *
  * <p>Resolves the strategy through {@link PackagerFactory}; it never branches on the mode
- * itself.
+ * itself. Transport is handled by {@link PackageListener}.
  */
 @Service
-public class PackagingService {
+public class PackageHandler {
 
     private final PackagerFactory packagerFactory;
     private final PipelineProperties pipelineProperties;
     private final BlobStore blobStore;
     private final SegmentRepository segmentRepository;
 
-    public PackagingService(PackagerFactory packagerFactory,
-                            PipelineProperties pipelineProperties,
-                            BlobStore blobStore,
-                            SegmentRepository segmentRepository) {
+    public PackageHandler(PackagerFactory packagerFactory,
+                          PipelineProperties pipelineProperties,
+                          BlobStore blobStore,
+                          SegmentRepository segmentRepository) {
         this.packagerFactory = packagerFactory;
         this.pipelineProperties = pipelineProperties;
         this.blobStore = blobStore;

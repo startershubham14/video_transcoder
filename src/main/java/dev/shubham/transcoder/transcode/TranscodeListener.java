@@ -8,18 +8,19 @@ import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
 /**
- * Stage-2 consumer — the horizontally scaled pool ({@code --scale transcode-worker=N}).
- * Prefetch=1 spreads the backlog evenly. The ack/retry/dead-letter skeleton is inherited
- * from {@link AbstractStageWorker}; this class only binds the queue and supplies the body.
+ * Stage-2 listener (transport only) — the horizontally scaled pool
+ * ({@code --scale transcode-worker=N}). Prefetch=1 spreads the backlog evenly. The
+ * ack/retry/dead-letter skeleton is inherited from {@link AbstractStageWorker}; this class
+ * only binds the queue and delegates to {@link TranscodeHandler}.
  */
 @Component
-public class TranscodeWorker extends AbstractStageWorker<TranscodeTask> {
+public class TranscodeListener extends AbstractStageWorker<TranscodeTask> {
 
-    private final TranscodeService transcodeService;
+    private final TranscodeHandler transcodeHandler;
 
-    public TranscodeWorker(ErrorClassifier errorClassifier, TranscodeService transcodeService) {
+    public TranscodeListener(ErrorClassifier errorClassifier, TranscodeHandler transcodeHandler) {
         super(errorClassifier);
-        this.transcodeService = transcodeService;
+        this.transcodeHandler = transcodeHandler;
     }
 
     @RabbitListener(queues = QueueNames.TRANSCODE_QUEUE)
@@ -29,7 +30,7 @@ public class TranscodeWorker extends AbstractStageWorker<TranscodeTask> {
 
     @Override
     protected void process(TranscodeTask task) {
-        transcodeService.transcode(task);
+        transcodeHandler.transcode(task);
     }
 
     @Override

@@ -7,23 +7,42 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcType;
+import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.annotations.UuidGenerator;
 import org.hibernate.dialect.PostgreSQLEnumJdbcType;
 
 import java.time.Instant;
+import java.util.EnumMap;
+import java.util.EnumSet;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
- * One (rung × keyframe segment) unit of transcode work. Maps the {@code segments} table.
- * The {@code (job_id, rung, segment_index)} uniqueness makes fan-out idempotent — a
- * replayed prepare cannot create duplicate rows.
+ * One (rung × keyframe segment) unit of transcode work. Maps the {@code segments} table. The
+ * {@code (job_id, rung, segment_index)} uniqueness makes fan-out idempotent. Created via
+ * {@link #create}; state changes go through the intent methods, never a setter.
  */
 @Entity
 @Table(name = "segments", uniqueConstraints =
         @UniqueConstraint(columnNames = {"job_id", "rung", "segment_index"}))
 public class Segment {
 
+    /** Legal segment transitions (see the state machine in §4). */
+    private static final Map<SegmentStatus, Set<SegmentStatus>> LEGAL = new EnumMap<>(SegmentStatus.class);
+    static {
+        LEGAL.put(SegmentStatus.QUEUED, EnumSet.of(SegmentStatus.PROCESSING));
+        LEGAL.put(SegmentStatus.PROCESSING, EnumSet.of(
+                SegmentStatus.DONE, SegmentStatus.QUEUED, SegmentStatus.RETRY_WAIT, SegmentStatus.FAILED));
+        LEGAL.put(SegmentStatus.RETRY_WAIT, EnumSet.of(SegmentStatus.QUEUED));
+        LEGAL.put(SegmentStatus.DONE, EnumSet.noneOf(SegmentStatus.class));
+        LEGAL.put(SegmentStatus.FAILED, EnumSet.noneOf(SegmentStatus.class));
+    }
+
     @Id
+    @UuidGenerator
     private UUID id;
 
     @Column(name = "job_id", nullable = false)
@@ -52,9 +71,11 @@ public class Segment {
     @Column(name = "output_segment_key")
     private String outputSegmentKey;
 
-    @Column(name = "created_at", nullable = false)
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
+    @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
@@ -62,83 +83,91 @@ public class Segment {
         // for JPA
     }
 
-    public UUID getId() {
-        return id;
+    /** Create a QUEUED segment for a rung. The id is generated on persist. */
+    public static Segment create(UUID jobId, Rung rung, int segmentIndex, String sourceSegmentKey) {
+        Segment segment = new Segment();
+        segment.jobId = jobId;
+        segment.rung = rung.label();
+        segment.segmentIndex = segmentIndex;
+        segment.sourceSegmentKey = sourceSegmentKey;
+        segment.status = SegmentStatus.QUEUED;
+        segment.attempts = 0;
+        return segment;
     }
 
-    public void setId(UUID id) {
-        this.id = id;
+    // --- state transitions (intent verbs, guarded) ---
+
+    public void transitionTo(SegmentStatus target) {
+        if (!LEGAL.getOrDefault(status, Set.of()).contains(target)) {
+            throw new IllegalStateException("Illegal segment transition " + status + " -> " + target);
+        }
+        this.status = target;
+    }
+
+    public void markProcessing() {
+        transitionTo(SegmentStatus.PROCESSING);
+    }
+
+    public void markDone(String outputSegmentKey) {
+        this.outputSegmentKey = outputSegmentKey;
+        transitionTo(SegmentStatus.DONE);
+    }
+
+    public void markRetryWait() {
+        transitionTo(SegmentStatus.RETRY_WAIT);
+    }
+
+    public void requeue() {
+        transitionTo(SegmentStatus.QUEUED);
+    }
+
+    public void markFailed() {
+        transitionTo(SegmentStatus.FAILED);
+    }
+
+    public void incrementAttempts() {
+        this.attempts++;
+    }
+
+    // --- getters ---
+
+    public UUID getId() {
+        return id;
     }
 
     public UUID getJobId() {
         return jobId;
     }
 
-    public void setJobId(UUID jobId) {
-        this.jobId = jobId;
-    }
-
     public String getRung() {
         return rung;
-    }
-
-    public void setRung(String rung) {
-        this.rung = rung;
     }
 
     public int getSegmentIndex() {
         return segmentIndex;
     }
 
-    public void setSegmentIndex(int segmentIndex) {
-        this.segmentIndex = segmentIndex;
-    }
-
     public SegmentStatus getStatus() {
         return status;
-    }
-
-    public void setStatus(SegmentStatus status) {
-        this.status = status;
     }
 
     public int getAttempts() {
         return attempts;
     }
 
-    public void setAttempts(int attempts) {
-        this.attempts = attempts;
-    }
-
     public String getSourceSegmentKey() {
         return sourceSegmentKey;
-    }
-
-    public void setSourceSegmentKey(String sourceSegmentKey) {
-        this.sourceSegmentKey = sourceSegmentKey;
     }
 
     public String getOutputSegmentKey() {
         return outputSegmentKey;
     }
 
-    public void setOutputSegmentKey(String outputSegmentKey) {
-        this.outputSegmentKey = outputSegmentKey;
-    }
-
     public Instant getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(Instant createdAt) {
-        this.createdAt = createdAt;
-    }
-
     public Instant getUpdatedAt() {
         return updatedAt;
-    }
-
-    public void setUpdatedAt(Instant updatedAt) {
-        this.updatedAt = updatedAt;
     }
 }

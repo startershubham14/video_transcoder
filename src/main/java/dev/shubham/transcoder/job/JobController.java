@@ -16,15 +16,15 @@ import java.util.UUID;
 @RequestMapping("/jobs")
 public class JobController {
 
-    private final JobService jobService;
+    private final JobStatusService jobStatusService;
 
-    public JobController(JobService jobService) {
-        this.jobService = jobService;
+    public JobController(JobStatusService jobStatusService) {
+        this.jobStatusService = jobStatusService;
     }
 
     @GetMapping("/{id}")
-    public JobStatusResponse get(@PathVariable("id") UUID jobId) {
+    public JobStatusResponse getJobStatus(@PathVariable("id") UUID jobId) {
         // TODO map not-found to 404.
-        return jobService.getStatus(jobId);
+        return jobStatusService.getStatus(jobId);
     }
 }

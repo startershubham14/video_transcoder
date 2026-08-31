@@ -5,12 +5,11 @@ import org.springframework.stereotype.Service;
 import java.nio.file.Path;
 
 /**
- * Wraps the FFmpeg encode of a single segment to one rung
- * ({@code -vf scale}, {@code -c:v libx264}, target bitrate/CRF). The {@link Transcoder}
- * adapter.
+ * FFmpeg adapter for {@link Transcoder}. Encodes a single segment to one rung
+ * ({@code -vf scale}, {@code -c:v libx264}, target bitrate/CRF).
  */
 @Service
-public class SegmentTranscoder implements Transcoder {
+public class FfmpegTranscoder implements Transcoder {
 
     /** @return the encoded output file. */
     @Override

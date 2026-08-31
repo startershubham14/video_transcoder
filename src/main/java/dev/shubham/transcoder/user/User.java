@@ -4,51 +4,50 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UuidGenerator;
 
 import java.time.Instant;
 import java.util.UUID;
 
 /**
- * A registered user who owns jobs. Maps the {@code users} table.
+ * A registered user who owns jobs. Maps the {@code users} table. Created via {@link #create}.
  */
 @Entity
 @Table(name = "users")
 public class User {
 
     @Id
+    @UuidGenerator
     private UUID id;
 
     @Column(nullable = false, unique = true)
     private String email;
 
-    @Column(name = "created_at", nullable = false)
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
     protected User() {
         // for JPA
     }
 
-    public UUID getId() {
-        return id;
+    /** Create a new user. The id is generated on persist. */
+    public static User create(String email) {
+        User user = new User();
+        user.email = email;
+        return user;
     }
 
-    public void setId(UUID id) {
-        this.id = id;
+    public UUID getId() {
+        return id;
     }
 
     public String getEmail() {
         return email;
     }
 
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
     public Instant getCreatedAt() {
         return createdAt;
-    }
-
-    public void setCreatedAt(Instant createdAt) {
-        this.createdAt = createdAt;
     }
 }

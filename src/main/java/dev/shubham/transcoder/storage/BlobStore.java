@@ -8,7 +8,7 @@ import java.util.List;
 /**
  * Port for object storage. Application code depends on this, never on a vendor SDK
  * directly, so the S3 adapter can be swapped (MinIO ↔ AWS) and mocked in tests.
- * The concrete adapter is {@link S3StorageService}.
+ * The concrete adapter is {@link S3BlobStore}.
  */
 public interface BlobStore {
 
@@ -21,8 +21,8 @@ public interface BlobStore {
     /** Abort a dangling multipart upload (used by the timeout reaper). */
     void abortMultipartUpload(String key, String uploadId);
 
-    /** HeadObject — size / existence check after completion. */
-    long headObjectSize(String key);
+    /** Object size / existence check after completion (HeadObject under the hood). */
+    long objectSize(String key);
 
     /** Download an object to a local working file (worker-side). */
     void download(String key, Path destination);

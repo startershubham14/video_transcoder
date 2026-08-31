@@ -4,7 +4,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 /**
- * Port for keyframe-aligned segmentation. The concrete adapter is {@link VideoSplitter}.
+ * Port for keyframe-aligned segmentation. The concrete adapter is {@link FfmpegSplitter}.
  */
 public interface Splitter {
 

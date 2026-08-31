@@ -10,5 +10,5 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param port clamd TCP port (INSTREAM), default 3310
  */
 @ConfigurationProperties(prefix = "clamav")
-public record ClamAvConfig(String host, int port) {
+public record ClamAvProperties(String host, int port) {
 }
