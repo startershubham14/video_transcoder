@@ -35,9 +35,11 @@ public class S3Config {
 
     @Bean
     S3Presigner s3Presigner(StorageProperties properties) {
+        // Presigned URLs must be reachable by the client, which may differ from the app's own
+        // endpoint (e.g. app → minio:9000, host client → localhost:9000).
         var builder = S3Presigner.builder().region(Region.of(properties.region()));
-        if (properties.s3().hasEndpointOverride()) {
-            builder.endpointOverride(URI.create(properties.s3().endpoint()))
+        if (properties.s3().hasPresignEndpoint()) {
+            builder.endpointOverride(URI.create(properties.s3().presignEndpoint()))
                     .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(true).build());
         }
         return builder.build();

@@ -24,6 +24,9 @@ public interface BlobStore {
     /** Object size / existence check after completion (HeadObject under the hood). */
     long objectSize(String key);
 
+    /** Whether an object exists at the given key. */
+    boolean exists(String key);
+
     /** Download an object to a local working file (worker-side). */
     void download(String key, Path destination);
 

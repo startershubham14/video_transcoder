@@ -1,6 +1,9 @@
 package dev.shubham.transcoder.job;
 
+import dev.shubham.transcoder.config.PipelineProperties;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 
 /**
  * Admission-control decision: whether a new job may be accepted, i.e. the count of in-flight
@@ -11,9 +14,20 @@ import org.springframework.stereotype.Component;
 @Component
 public class AdmissionPolicy {
 
-    /** @return true if a new job may be admitted. */
+    /** Jobs actively holding pipeline resources (not yet terminal, past upload). */
+    private static final List<JobStatus> IN_FLIGHT =
+            List.of(JobStatus.PREPARING, JobStatus.PROCESSING, JobStatus.CONCATENATING);
+
+    private final JobRepository jobRepository;
+    private final PipelineProperties pipelineProperties;
+
+    public AdmissionPolicy(JobRepository jobRepository, PipelineProperties pipelineProperties) {
+        this.jobRepository = jobRepository;
+        this.pipelineProperties = pipelineProperties;
+    }
+
+    /** @return true if a new job may be admitted (in-flight count below the configured cap). */
     public boolean canAdmit() {
-        // TODO compare JobRepository.countByStatusIn(...) against the configured cap.
-        throw new UnsupportedOperationException("not implemented");
+        return jobRepository.countByStatusIn(IN_FLIGHT) < pipelineProperties.inFlightJobCap();
     }
 }

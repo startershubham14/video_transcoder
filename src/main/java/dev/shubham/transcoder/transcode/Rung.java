@@ -30,4 +30,14 @@ public enum Rung {
     public String videoBitrate() {
         return videoBitrate;
     }
+
+    /** Resolve a rung from its persisted {@code segments.rung} label (e.g. "720p"). */
+    public static Rung fromLabel(String label) {
+        for (Rung rung : values()) {
+            if (rung.label.equals(label)) {
+                return rung;
+            }
+        }
+        throw new IllegalArgumentException("unknown rung label: " + label);
+    }
 }

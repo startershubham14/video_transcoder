@@ -2,3 +2,5 @@
 mvnw text eol=lf
 # The Windows batch wrapper stays CRLF.
 mvnw.cmd text eol=crlf
+# Config files mounted into Linux containers must stay LF (CRLF can break parsers like clamd).
+*.conf text eol=lf

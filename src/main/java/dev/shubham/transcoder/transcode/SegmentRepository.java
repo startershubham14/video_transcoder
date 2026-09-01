@@ -18,8 +18,29 @@ public interface SegmentRepository extends JpaRepository<Segment, UUID> {
 
     List<Segment> findByJobIdAndRung(UUID jobId, String rung);
 
+    /** A rung's segments in playback order (for concat / playlist assembly). */
+    List<Segment> findByJobIdAndRungOrderBySegmentIndexAsc(UUID jobId, String rung);
+
+    /** Distinct rungs produced for a job (the ladder that prepare derived). */
+    @Query("select distinct s.rung from Segment s where s.jobId = :jobId")
+    List<String> findDistinctRungs(@Param("jobId") UUID jobId);
+
     /**
-     * Mark my segment DONE, idempotently.
+     * Mark a QUEUED segment PROCESSING (observability). Idempotent — a redelivery of an
+     * already-PROCESSING/DONE segment affects 0 rows.
+     */
+    @Modifying
+    @Query("""
+            update Segment s
+               set s.status = dev.shubham.transcoder.transcode.SegmentStatus.PROCESSING,
+                   s.updatedAt = CURRENT_TIMESTAMP
+             where s.id = :segmentId
+               and s.status = dev.shubham.transcoder.transcode.SegmentStatus.QUEUED
+            """)
+    int markProcessing(@Param("segmentId") UUID segmentId);
+
+    /**
+     * Mark my segment DONE and record its output key, idempotently.
      *
      * @return rows affected (0 if it was already DONE)
      */
@@ -27,11 +48,12 @@ public interface SegmentRepository extends JpaRepository<Segment, UUID> {
     @Query("""
             update Segment s
                set s.status = dev.shubham.transcoder.transcode.SegmentStatus.DONE,
+                   s.outputSegmentKey = :outputKey,
                    s.updatedAt = CURRENT_TIMESTAMP
              where s.id = :segmentId
                and s.status <> dev.shubham.transcoder.transcode.SegmentStatus.DONE
             """)
-    int markDone(@Param("segmentId") UUID segmentId);
+    int markDone(@Param("segmentId") UUID segmentId, @Param("outputKey") String outputKey);
 
     /**
      * Claim the concat/package trigger for one rung — the atomic fan-in (Golden rule 5).

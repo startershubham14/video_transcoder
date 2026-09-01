@@ -2,6 +2,8 @@ package dev.shubham.transcoder.job;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
@@ -21,7 +23,11 @@ public class AdmissionControlInterceptor implements HandlerInterceptor {
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
-        // TODO if (!admissionPolicy.canAdmit()) { set 429 + Retry-After; return false; }
-        throw new UnsupportedOperationException("not implemented");
+        if (admissionPolicy.canAdmit()) {
+            return true;
+        }
+        response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
+        response.setHeader(HttpHeaders.RETRY_AFTER, "30");
+        return false; // over the in-flight cap
     }
 }

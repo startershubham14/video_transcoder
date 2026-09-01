@@ -24,6 +24,8 @@ x-app-environment: &app-environment
   AWS_REGION: ${AWS_REGION:-us-east-1}
   AWS_S3_BUCKET: ${AWS_S3_BUCKET:-transcoder}
   AWS_S3_ENDPOINT: http://minio:9000
+  # Presigned URLs are handed to clients; make them reachable from the host (published :9000).
+  AWS_S3_PUBLIC_ENDPOINT: ${AWS_S3_PUBLIC_ENDPOINT:-http://localhost:9000}
   AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-minioadmin}
   AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-minioadmin}
   OUTPUT_MODE: ${OUTPUT_MODE:-mp4}
@@ -100,6 +102,9 @@ services:
     image: clamav/clamav:latest
     # First start downloads virus definitions (~1–2 min); the prepare stage needs this,
     # but the app boots without it (the scanner is only called mid-pipeline).
+    volumes:
+      # Raise StreamMaxLength etc. to the input cap so large uploads can be scanned.
+      - ./docker/clamav/clamd.conf:/etc/clamav/clamd.conf
     healthcheck:
       test: ["CMD", "clamdcheck.sh"]
       interval: 30s
@@ -115,7 +120,8 @@ services:
       SPRING_PROFILES_ACTIVE: api
     depends_on: *app-depends
     ports:
-      - "8080:8080"
+      # Host port is overridable to avoid a conflict: API_PORT=8081 docker compose up
+      - "${API_PORT:-8080}:8080"
 
   worker:
     build: .
