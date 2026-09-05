@@ -291,6 +291,49 @@ sweep, timeout reaper bodies); Testcontainers integration tests; scaling benchma
 
 ---
 
+## 2026-09-02 — Status endpoint (build-order step 7) + dependency setup
+
+**Branch:** `claude/dev-branch-docs-review-6ded45` (to be published to `dev`)
+
+**Goal:** Make `GET /jobs/{id}` real (it was a stub → 500) so clients / `scripts/smoke.py` can poll
+progress and retrieve output URLs, and pre-install the dependencies the observability + integration-
+test backlog needs.
+
+**Done:**
+- **Dependencies (`pom.xml`):** added `spring-boot-starter-actuator` + `micrometer-registry-prometheus`
+  (observability base) and Testcontainers (`testcontainers-bom` import + test-scope `junit-jupiter`,
+  `postgresql`, `rabbitmq`; pinned `testcontainers.version=1.20.4`). `application.yml` exposes
+  `health,info,prometheus` actuator endpoints (`/actuator/health` now live). Testcontainers is
+  dormant until the integration-test task uses it.
+- **Status endpoint (polling):** implemented `JobStatusService.getStatus` — loads the job (404 via
+  `ResponseStatusException` for unknown id, matching existing API error style), derives progress from
+  segment COUNTs, and mints presigned GET URLs only when `COMPLETED`. Added
+  `SegmentRepository.countByJobId` / `countByJobIdAndStatus` (cheap COUNTs, no full-row loads).
+  `JobController` no longer needs the not-found TODO.
+- New knob `pipeline.download-url-ttl-minutes` (`DOWNLOAD_URL_TTL_MINUTES`, default 60) — no magic
+  numbers for the presigned-URL lifetime.
+- Tests: `JobStatusServiceTest` (8 new — progress edge cases incl. the 99-cap, 404, URLs-only-when-
+  COMPLETED with one presigned URL per rung, error surfacing). Fixed `AdmissionPolicyTest`'s
+  `PipelineProperties` constructor for the new field. `./mvnw -B verify` green (**41 tests**, 4
+  pre-existing `@Disabled` skips).
+
+**Key decisions:**
+- **Progress capped at 99** for non-COMPLETED jobs so "100%" never shows while a job is still
+  `CONCATENATING`/packaging; `COMPLETED` is authoritatively 100.
+- **Output URLs derived, never stored** (Golden rule 8): reuse the packaging stage's key derivation
+  via `PackagerFactory` + `Packager.outputKey` — MP4 → one URL per rung; HLS → the master manifest
+  (`manifest_key`) when present. Callers never branch on `OutputMode`.
+- **Polling only; SSE deferred** — build order says "status polling (SSE later)". Left
+  `OutputDeliveryService` / `StatusStreamController` stubs untouched to avoid editing the working
+  packaging stage (OCP) for a deferred feature.
+
+**Open follow-ups:** SSE push; reliability (ErrorClassifier/retry-backoff, sweep/reaper bodies,
+`@RestControllerAdvice`); observability dashboards (Prometheus + Grafana, MDC logging) — deps now
+in place; Testcontainers integration tests (race/idempotency/error-routing) — deps now in place;
+HLS packager.
+
+---
+
 ## Backlog — Observability & operability (later tasks, requested)
 
 **Monitoring dashboard / service status**

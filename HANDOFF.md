@@ -11,8 +11,12 @@ what's left so a new session can continue on `dev` without prior context.
   1. compose skeleton · 2. migrations + entities · 3. upload flow (`/uploads`,`/complete`) ·
   4. prepare worker (probe/scan/limits/keyframe-split/fan-out) · 5. transcode worker + **atomic
   per-rung fan-in** · 6. packaging (**MP4 milestone**).
-- `./mvnw -B verify` is green (33 tests). CI (`.github/workflows/ci.yml`) runs `./mvnw verify`
-  on PRs to `main`.
+- **Step 7 (status polling) is DONE:** `GET /jobs/{id}` returns status + segment-derived progress
+  and, once `COMPLETED`, presigned MP4 download URLs (one per rung). SSE push still deferred.
+- **Dependencies added** for later work: Actuator + Micrometer-Prometheus (`/actuator/health` +
+  `/actuator/prometheus` live) and Testcontainers (test-scope, dormant until integration tests).
+- `./mvnw -B verify` is green (41 tests; 4 `@Disabled` skips). CI (`.github/workflows/ci.yml`)
+  runs `./mvnw verify` on PRs to `main`.
 
 ## ⚠️ Local-only files the new session needs
 `CLAUDE.md` (conventions — read it first) and `DEVLOG.md` (full history + backlog) are **git-ignored
@@ -57,8 +61,8 @@ Postgres `SELECT status FROM jobs...`. Job → `COMPLETED` when all rungs packag
   native enums broke Hibernate bulk-update casts. Ids are DB-generated (`@Generated INSERT`).
 
 ## What's left (backlog — details in DEVLOG.md)
-- **Status endpoint** (step 7): `JobStatusService.getStatus` — progress from segment rows + presigned
-  download URLs (`JobController.getJobStatus` already wired to it; currently a stub → 500 if called).
+- **SSE push** (status step, deferred half): implement `OutputDeliveryService` + `StatusStreamController`
+  (`GET /jobs/{id}/events`) to push progress/URLs to connected clients; polling already works.
 - **HLS**: implement `HlsPackager` (2nd Packager) + `finalizeJob` master playlist + `hls.js` page.
 - **Reliability**: transient retry-delay/backoff via `ErrorClassifier` (AbstractStageWorker TODO —
   today all failures DLQ on first try); `ReconciliationSweep` + `UploadTimeoutReaper` bodies (currently

@@ -147,6 +147,14 @@ sequenceDiagram
     API-->>C: progress percent or COMPLETED with URLs
 ```
 
+### Checking progress
+
+`GET /jobs/{id}` returns the job's status, a segment-derived `progress` (0–100), and — once the
+job is `COMPLETED` — freshly minted presigned download URLs (one per rung for MP4; the master
+manifest for HLS). URLs are never stored; they are signed on demand and expire
+(`DOWNLOAD_URL_TTL_MINUTES`). Unknown ids return `404`. (Live SSE push at `/jobs/{id}/events` is
+planned; polling is the baseline.)
+
 ## Documentation
 
 - [`docs/design-notes.md`](docs/design-notes.md) — the **why**: project concept, stack
