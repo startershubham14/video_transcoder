@@ -24,7 +24,6 @@ public class JobController {
 
     @GetMapping("/{id}")
     public JobStatusResponse getJobStatus(@PathVariable("id") UUID jobId) {
-        // TODO map not-found to 404.
-        return jobStatusService.getStatus(jobId);
+        return jobStatusService.getStatus(jobId); // 404 raised by the service for an unknown job
     }
 }

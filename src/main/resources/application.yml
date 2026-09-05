@@ -24,6 +24,17 @@ spring:
         prefetch: ${PREFETCH:1}          # spread backlog evenly, no hoarding
         acknowledge-mode: manual         # ack only after work + state commit
 
+# Observability: expose health/info + the Prometheus scrape endpoint (metrics dashboards
+# are a later task; this is the base surface + a target for compose healthchecks).
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+
 # Pipeline tuning knobs, bound by PipelineProperties. Defaults mirror .env.example.
 pipeline:
   output-mode: ${OUTPUT_MODE:mp4}
@@ -34,6 +45,7 @@ pipeline:
   retry-backoff-seconds: ${RETRY_BACKOFF_SECONDS:2,8,30}
   in-flight-job-cap: ${IN_FLIGHT_JOB_CAP:50}
   upload-deadline-minutes: ${UPLOAD_DEADLINE_MINUTES:60}
+  download-url-ttl-minutes: ${DOWNLOAD_URL_TTL_MINUTES:60}
 
 aws:
   region: ${AWS_REGION:us-east-1}

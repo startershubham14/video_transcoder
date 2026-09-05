@@ -17,7 +17,7 @@ import static org.mockito.Mockito.when;
 class AdmissionPolicyTest {
 
     private static PipelineProperties propsWithCap(int cap) {
-        return new PipelineProperties("mp4", 8, 300, 2_147_483_648L, 3, List.of(2, 8, 30), cap, 60);
+        return new PipelineProperties("mp4", 8, 300, 2_147_483_648L, 3, List.of(2, 8, 30), cap, 60, 60);
     }
 
     private static AdmissionPolicy policy(long inFlight, int cap) {

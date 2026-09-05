@@ -16,6 +16,7 @@ import java.util.List;
  * @param retryBackoffSeconds   per-attempt backoff, e.g. {@code [2, 8, 30]}
  * @param inFlightJobCap        admission-control ceiling on concurrent jobs
  * @param uploadDeadlineMinutes grace period before an un-completed upload EXPIRES
+ * @param downloadUrlTtlMinutes lifetime of presigned GET URLs minted for output delivery
  */
 @ConfigurationProperties(prefix = "pipeline")
 public record PipelineProperties(
@@ -26,6 +27,7 @@ public record PipelineProperties(
         int retryMaxAttempts,
         List<Integer> retryBackoffSeconds,
         int inFlightJobCap,
-        int uploadDeadlineMinutes
+        int uploadDeadlineMinutes,
+        int downloadUrlTtlMinutes
 ) {
 }

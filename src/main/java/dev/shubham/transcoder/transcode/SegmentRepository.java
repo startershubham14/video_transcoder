@@ -18,6 +18,12 @@ public interface SegmentRepository extends JpaRepository<Segment, UUID> {
 
     List<Segment> findByJobIdAndRung(UUID jobId, String rung);
 
+    /** Total segments fanned out for a job (progress denominator). */
+    long countByJobId(UUID jobId);
+
+    /** Segments in a given status for a job, e.g. DONE (progress numerator). */
+    long countByJobIdAndStatus(UUID jobId, SegmentStatus status);
+
     /** A rung's segments in playback order (for concat / playlist assembly). */
     List<Segment> findByJobIdAndRungOrderBySegmentIndexAsc(UUID jobId, String rung);
 
