@@ -22,7 +22,7 @@ class PackagingTest {
 
     @Test
     void hlsOutputKeyIsMediaPlaylist() {
-        assertEquals(JOB + "/hls/480p.m3u8", new HlsPackager().outputKey(JOB, "480p"));
+        assertEquals(JOB + "/hls/480p.m3u8", new HlsPackager(null, null).outputKey(JOB, "480p"));
     }
 
     @Test

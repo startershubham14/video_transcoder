@@ -35,4 +35,10 @@ public interface BlobStore {
 
     /** Mint a fresh presigned GET URL for output delivery. */
     URL presignGet(String key, Duration ttl);
+
+    /**
+     * Unsigned, client-reachable URL for a public-read object (HLS delivery: a manifest references
+     * many sibling files that a single presigned URL can't cover). Not for private objects.
+     */
+    URL publicUrl(String key);
 }

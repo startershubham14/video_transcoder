@@ -2,6 +2,7 @@ package dev.shubham.transcoder.packaging;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -35,5 +36,14 @@ public interface Packager {
      */
     default void finalizeJob(UUID jobId, List<String> rungs) {
         // no-op by default
+    }
+
+    /**
+     * The single job-level artifact a client fetches, if this mode has one — the HLS master
+     * {@code .m3u8}. Empty for MP4 (delivery is per-rung files). Lets the status endpoint pick
+     * the right output(s) without branching on {@link OutputMode}. Derived, never persisted.
+     */
+    default Optional<String> masterOutputKey(UUID jobId) {
+        return Optional.empty();
     }
 }

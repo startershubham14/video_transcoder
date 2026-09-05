@@ -18,6 +18,8 @@ import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.UploadPartPresignRequest;
 
+import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URL;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -39,11 +41,15 @@ public class S3BlobStore implements BlobStore {
     private final S3Client s3Client;
     private final S3Presigner s3Presigner;
     private final String bucket;
+    private final String presignEndpoint; // host-reachable endpoint (MinIO); blank for real AWS
+    private final String region;
 
     public S3BlobStore(S3Client s3Client, S3Presigner s3Presigner, StorageProperties properties) {
         this.s3Client = s3Client;
         this.s3Presigner = s3Presigner;
         this.bucket = properties.s3().bucket();
+        this.presignEndpoint = properties.s3().presignEndpoint();
+        this.region = properties.region();
     }
 
     @Override
@@ -115,5 +121,23 @@ public class S3BlobStore implements BlobStore {
                 .signatureDuration(ttl)
                 .getObjectRequest(GetObjectRequest.builder().bucket(bucket).key(key).build())
                 .build()).url();
+    }
+
+    @Override
+    public URL publicUrl(String key) {
+        // MinIO/S3-compatible: path-style against the host-reachable endpoint. Real AWS: the
+        // virtual-hosted bucket URL. Only valid for objects with a public-read policy.
+        String url = (presignEndpoint != null && !presignEndpoint.isBlank())
+                ? trimTrailingSlash(presignEndpoint) + "/" + bucket + "/" + key
+                : "https://" + bucket + ".s3." + region + ".amazonaws.com/" + key;
+        try {
+            return URI.create(url).toURL();
+        } catch (MalformedURLException e) {
+            throw new IllegalStateException("cannot build public URL for key " + key, e);
+        }
+    }
+
+    private static String trimTrailingSlash(String s) {
+        return s.endsWith("/") ? s.substring(0, s.length() - 1) : s;
     }
 }

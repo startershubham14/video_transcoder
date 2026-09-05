@@ -155,6 +155,12 @@ manifest for HLS). URLs are never stored; they are signed on demand and expire
 (`DOWNLOAD_URL_TTL_MINUTES`). Unknown ids return `404`. (Live SSE push at `/jobs/{id}/events` is
 planned; polling is the baseline.)
 
+With `OUTPUT_MODE=hls`, packaging writes per-rung media playlists + a master `.m3u8` (reusing the
+same transcoded segments — only the packaging step differs), and the status response returns the
+master playlist URL. HLS outputs are served **public-read** from MinIO for the demo (a manifest
+references many sibling files a single presigned URL can't cover; production would use signed
+cookies / a CDN). Play it in the browser at `http://localhost:8080/player.html?src=<master url>`.
+
 ## Documentation
 
 - [`docs/design-notes.md`](docs/design-notes.md) — the **why**: project concept, stack
