@@ -46,6 +46,7 @@ pipeline:
   in-flight-job-cap: ${IN_FLIGHT_JOB_CAP:50}
   upload-deadline-minutes: ${UPLOAD_DEADLINE_MINUTES:60}
   download-url-ttl-minutes: ${DOWNLOAD_URL_TTL_MINUTES:60}
+  reconciliation-stale-seconds: ${RECONCILIATION_STALE_SECONDS:120}
 
 aws:
   region: ${AWS_REGION:us-east-1}

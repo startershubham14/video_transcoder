@@ -1,5 +1,6 @@
 package dev.shubham.transcoder.transcode;
 
+import dev.shubham.transcoder.job.JobRepository;
 import dev.shubham.transcoder.messaging.PackageTask;
 import dev.shubham.transcoder.messaging.TaskPublisher;
 import dev.shubham.transcoder.messaging.TranscodeTask;
@@ -38,17 +39,20 @@ public class TranscodeHandler {
     private final Transcoder transcoder;
     private final BlobStore blobStore;
     private final SegmentRepository segmentRepository;
+    private final JobRepository jobRepository;
     private final TaskPublisher taskPublisher;
     private final TransactionTemplate transactionTemplate;
 
     public TranscodeHandler(Transcoder transcoder,
                             BlobStore blobStore,
                             SegmentRepository segmentRepository,
+                            JobRepository jobRepository,
                             TaskPublisher taskPublisher,
                             PlatformTransactionManager transactionManager) {
         this.transcoder = transcoder;
         this.blobStore = blobStore;
         this.segmentRepository = segmentRepository;
+        this.jobRepository = jobRepository;
         this.taskPublisher = taskPublisher;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
@@ -96,6 +100,22 @@ public class TranscodeHandler {
             segmentRepository.markDone(segmentId, outputKey);
             if (segmentRepository.tryClaimPackaging(jobId, rung) == 1) {
                 publishPackageAfterCommit(jobId, rung);
+            }
+        });
+    }
+
+    /**
+     * Terminal give-up for a segment that exhausted its retries (invoked by
+     * {@link TranscodeListener#onGiveUp}): mark the segment FAILED and fail the owning job so it
+     * doesn't hang in PROCESSING. Guarded + idempotent under concurrent segment failures.
+     */
+    public void failSegment(TranscodeTask task, String reason) {
+        String detail = reason == null || reason.isBlank() ? "transcode failed" : reason;
+        transactionTemplate.executeWithoutResult(status -> {
+            segmentRepository.markFailed(task.segmentId());
+            if (jobRepository.failJob(task.jobId(), detail) == 1) {
+                log.warn("[transcode] job {} FAILED: segment {} gave up ({})",
+                        task.jobId(), task.segmentId(), detail);
             }
         });
     }

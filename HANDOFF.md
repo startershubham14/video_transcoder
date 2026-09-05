@@ -15,8 +15,13 @@ what's left so a new session can continue on `dev` without prior context.
   and, once `COMPLETED`, presigned MP4 download URLs (one per rung). SSE push still deferred.
 - **Dependencies added** for later work: Actuator + Micrometer-Prometheus (`/actuator/health` +
   `/actuator/prometheus` live) and Testcontainers (test-scope, dormant until integration tests).
-- `./mvnw -B verify` is green (41 tests; 4 `@Disabled` skips). CI (`.github/workflows/ci.yml`)
-  runs `./mvnw verify` on PRs to `main`.
+- **Step 8 (reliability) is DONE:** transient/permanent routing (`ErrorClassifier`), exponential
+  backoff via a fanout `retry.exchange` → `retry.delay.queue` (per-message TTL, dead-letters back to
+  origin) with bounded retries → DLQ in `AbstractStageWorker`; transcode give-up marks the segment +
+  job FAILED (no hung jobs); `ReconciliationSweep` + `UploadTimeoutReaper` bodies; global
+  `@RestControllerAdvice` (`web.ApiExceptionHandler`). New knob `RECONCILIATION_STALE_SECONDS`.
+- `./mvnw -B verify` is green (56 tests; only `FanInRaceTest` `@Disabled` for Testcontainers). CI
+  (`.github/workflows/ci.yml`) runs `./mvnw verify` on PRs to `main`.
 
 ## ⚠️ Local-only files the new session needs
 `CLAUDE.md` (conventions — read it first) and `DEVLOG.md` (full history + backlog) are **git-ignored
@@ -64,9 +69,9 @@ Postgres `SELECT status FROM jobs...`. Job → `COMPLETED` when all rungs packag
 - **SSE push** (status step, deferred half): implement `OutputDeliveryService` + `StatusStreamController`
   (`GET /jobs/{id}/events`) to push progress/URLs to connected clients; polling already works.
 - **HLS**: implement `HlsPackager` (2nd Packager) + `finalizeJob` master playlist + `hls.js` page.
-- **Reliability**: transient retry-delay/backoff via `ErrorClassifier` (AbstractStageWorker TODO —
-  today all failures DLQ on first try); `ReconciliationSweep` + `UploadTimeoutReaper` bodies (currently
-  no-op); global `@RestControllerAdvice` for consistent API error bodies.
+- **Reliability follow-ups** (core done): segment `RETRY_WAIT` observability (the message header is the
+  authoritative retry counter); prepare/package give-up job-failing; package-stage reconciliation; DLQ
+  drain/inspection tooling.
 - **Observability** (requested): Actuator + Micrometer + Prometheus + Grafana dashboard (services
   health, queue depth, throughput); structured logging with MDC (jobId/segmentId/rung).
 - **Testcontainers** integration tests (fan-in race, idempotency, error routing — placeholders

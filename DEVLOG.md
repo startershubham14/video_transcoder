@@ -334,6 +334,53 @@ HLS packager.
 
 ---
 
+## 2026-09-05 — Reliability (build-order step 8)
+
+**Branch:** `claude/dev-branch-docs-review-6ded45` (published to `dev`)
+
+**Goal:** Replace the stub failure story (every failure dead-lettered on first try; classifier/sweep/
+reaper unimplemented) with the documented reliability machinery (architecture doc §5).
+
+**Done:**
+- **`ErrorClassifier`** — cause-walking transient/permanent decision. PERMANENT:
+  `PrepareRejectedException`, S3 `NoSuchKeyException`, `ProcessExecutionException`, and definitive AWS
+  4xx. TRANSIENT: AWS 5xx/429, `SdkClientException`, `IOException`/socket/connect, `AmqpException`.
+  Unknown → TRANSIENT (retry cap bounds the cost).
+- **Backoff transport** — new fanout `retry.exchange` + rewired `retry.delay.queue`
+  (`x-dead-letter-exchange=""`, no dlx-routing-key). New `RetryPublisher.scheduleRetry` re-publishes
+  the original message **bytes** to the exchange with routing key = origin stage queue, a per-message
+  TTL, and an `x-retry-attempts` header. Fanout parks it in the delay queue while retaining the key;
+  on TTL-expiry it dead-letters back to the origin stage queue. One retry queue serves all stages.
+- **`AbstractStageWorker`** — now takes the raw AMQP `Message`; reads the attempt header; TRANSIENT &
+  `attempts < RETRY_MAX_ATTEMPTS` → `scheduleRetry` (backoff `[2,8,30]s` by attempt) + ack; PERMANENT /
+  exhausted → `onGiveUp` hook + nack→DLQ. Three listeners updated to pass the `Message` (transport-only
+  role kept).
+- **No hung jobs** — `TranscodeListener.onGiveUp` → `TranscodeHandler.failSegment`: guarded
+  `SegmentRepository.markFailed` + `JobRepository.failJob` (PREPARING/PROCESSING/CONCATENATING→FAILED,
+  fires once).
+- **`UploadTimeoutReaper`** — past-deadline `AWAITING_UPLOAD` → `EXPIRED` (no S3 abort; uploadId isn't
+  persisted, S3 lifecycle handles it). **`ReconciliationSweep`** — re-publishes stale `PREPARING` jobs
+  (PrepareTask) and stale `QUEUED` segments (TranscodeTask), gated by
+  `pipeline.reconciliation-stale-seconds` (default 120) so it never races live work.
+- **Global `@RestControllerAdvice`** (`web.ApiExceptionHandler` + `web.ApiError`) — consistent JSON
+  error bodies; preserves `ResponseStatusException` status/reason, generic 500 otherwise (no leaks).
+- Tests: `ErrorClassifierTest`, `ErrorRoutingTest` (now real — routing via a mocked worker),
+  `UploadTimeoutReaperTest`, `ReconciliationSweepTest`, `ApiExceptionHandlerTest`.
+  `./mvnw -B verify` green (**56 tests**; only `FanInRaceTest` still `@Disabled` for Testcontainers).
+
+**Key decisions:**
+- **Attempt count lives in the message header**, not the DB — the retry mechanism is uniform across
+  all three stages (Template Method), no per-stage divergence.
+- **Fanout retry.exchange** chosen so a single retry queue can return each message to its own origin
+  stage via the retained routing key (RabbitMQ has no per-message dead-letter routing key).
+- Unknown errors default TRANSIENT per the doc; a definitive AWS 4xx is treated PERMANENT.
+
+**Open follow-ups (deferred):** segment `RETRY_WAIT` observability (header is the authoritative
+counter); prepare/package give-up job-failing; package-stage reconciliation; DLQ drain/inspection;
+Testcontainers e2e for race/idempotency/routing (deps in place).
+
+---
+
 ## Backlog — Observability & operability (later tasks, requested)
 
 **Monitoring dashboard / service status**

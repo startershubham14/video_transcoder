@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -23,6 +24,24 @@ public interface SegmentRepository extends JpaRepository<Segment, UUID> {
 
     /** Segments in a given status for a job, e.g. DONE (progress numerator). */
     long countByJobIdAndStatus(UUID jobId, SegmentStatus status);
+
+    /** Segments in a status untouched since {@code cutoff} — reconciliation-sweep candidates. */
+    List<Segment> findByStatusAndUpdatedAtBefore(SegmentStatus status, Instant cutoff);
+
+    /**
+     * Mark a segment FAILED (terminal) when it exhausts retries / fails permanently. Idempotent —
+     * a re-run affects 0 rows. Unconditional set (not guarded on the source status) so a segment
+     * still QUEUED at give-up can also be closed out.
+     */
+    @Modifying
+    @Query("""
+            update Segment s
+               set s.status = dev.shubham.transcoder.transcode.SegmentStatus.FAILED,
+                   s.updatedAt = CURRENT_TIMESTAMP
+             where s.id = :segmentId
+               and s.status <> dev.shubham.transcoder.transcode.SegmentStatus.FAILED
+            """)
+    int markFailed(@Param("segmentId") UUID segmentId);
 
     /** A rung's segments in playback order (for concat / playlist assembly). */
     List<Segment> findByJobIdAndRungOrderBySegmentIndexAsc(UUID jobId, String rung);
