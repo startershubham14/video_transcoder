@@ -17,6 +17,8 @@ import java.util.List;
  * @param inFlightJobCap        admission-control ceiling on concurrent jobs
  * @param uploadDeadlineMinutes grace period before an un-completed upload EXPIRES
  * @param downloadUrlTtlMinutes lifetime of presigned GET URLs minted for output delivery
+ * @param reconciliationStaleSeconds age a committed job/segment must reach before the
+ *                                   reconciliation sweep re-drives it (avoids racing live work)
  */
 @ConfigurationProperties(prefix = "pipeline")
 public record PipelineProperties(
@@ -28,6 +30,7 @@ public record PipelineProperties(
         List<Integer> retryBackoffSeconds,
         int inFlightJobCap,
         int uploadDeadlineMinutes,
-        int downloadUrlTtlMinutes
+        int downloadUrlTtlMinutes,
+        int reconciliationStaleSeconds
 ) {
 }

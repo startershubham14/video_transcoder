@@ -253,7 +253,10 @@ and refactor to the pattern when the second case actually arrives (YAGNI).
 
 ## Messaging (RabbitMQ)
 
-- One queue per stage + a shared `dead-letter.queue` + a `retry.delay.queue` (TTL backoff).
+- One queue per stage + a shared `dead-letter.queue` + a `retry.delay.queue` (TTL backoff). The
+  retry queue is fed by a **fanout `retry.exchange`**: a transient failure is re-published there with
+  routing key = origin stage queue and a per-message TTL; the queue's default-exchange DLX (no fixed
+  routing key) then dead-letters the expired message back to that origin stage via its retained key.
 - **Retry policy**: max `RETRY_MAX_ATTEMPTS` (default 3), backoff `2s → 8s → 30s`.
   - **Transient** errors (S3 5xx, timeouts) → retry via delay queue.
   - **Permanent** errors (corrupt input, missing key, infected) → DLQ on first failure.

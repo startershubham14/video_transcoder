@@ -1,10 +1,13 @@
 package dev.shubham.transcoder.prepare;
 
+import dev.shubham.transcoder.config.PipelineProperties;
 import dev.shubham.transcoder.messaging.AbstractStageWorker;
 import dev.shubham.transcoder.messaging.ErrorClassifier;
 import dev.shubham.transcoder.messaging.PrepareTask;
+import dev.shubham.transcoder.messaging.RetryPublisher;
 import com.rabbitmq.client.Channel;
 import dev.shubham.transcoder.messaging.QueueNames;
+import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.support.AmqpHeaders;
 import org.springframework.context.annotation.Profile;
@@ -24,15 +27,18 @@ public class PrepareListener extends AbstractStageWorker<PrepareTask> {
 
     private final PrepareHandler prepareHandler;
 
-    public PrepareListener(ErrorClassifier errorClassifier, PrepareHandler prepareHandler) {
-        super(errorClassifier);
+    public PrepareListener(ErrorClassifier errorClassifier,
+                           RetryPublisher retryPublisher,
+                           PipelineProperties pipelineProperties,
+                           PrepareHandler prepareHandler) {
+        super(errorClassifier, retryPublisher, pipelineProperties, QueueNames.PREPARE_QUEUE);
         this.prepareHandler = prepareHandler;
     }
 
     @RabbitListener(queues = QueueNames.PREPARE_QUEUE)
-    public void onPrepare(PrepareTask task, Channel channel,
+    public void onPrepare(PrepareTask task, Message message, Channel channel,
                           @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag) {
-        execute(task, channel, deliveryTag);
+        execute(task, message, channel, deliveryTag);
     }
 
     @Override

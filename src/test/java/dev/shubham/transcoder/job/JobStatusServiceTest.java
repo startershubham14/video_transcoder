@@ -34,7 +34,7 @@ import static org.mockito.Mockito.when;
 class JobStatusServiceTest {
 
     private static PipelineProperties props(String mode) {
-        return new PipelineProperties(mode, 8, 300, 2_147_483_648L, 3, List.of(2, 8, 30), 50, 60, 60);
+        return new PipelineProperties(mode, 8, 300, 2_147_483_648L, 3, List.of(2, 8, 30), 50, 60, 60, 120);
     }
 
     // ---- computeProgress (pure) ----
