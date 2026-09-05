@@ -1,5 +1,6 @@
 package dev.shubham.transcoder.job;
 
+import dev.shubham.transcoder.messaging.JobEventPublisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
@@ -26,11 +27,14 @@ public class UploadTimeoutReaper {
     private static final Logger log = LoggerFactory.getLogger(UploadTimeoutReaper.class);
 
     private final JobRepository jobRepository;
+    private final JobEventPublisher jobEventPublisher;
     private final TransactionTemplate transactionTemplate;
 
     public UploadTimeoutReaper(JobRepository jobRepository,
+                               JobEventPublisher jobEventPublisher,
                                PlatformTransactionManager transactionManager) {
         this.jobRepository = jobRepository;
+        this.jobEventPublisher = jobEventPublisher;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
@@ -49,6 +53,7 @@ public class UploadTimeoutReaper {
                     log.info("[reaper] job {} EXPIRED (upload deadline passed)", job.getId());
                 }
             });
+            jobEventPublisher.publish(candidate.getId()); // notify SSE watchers: job → EXPIRED
         }
     }
 }

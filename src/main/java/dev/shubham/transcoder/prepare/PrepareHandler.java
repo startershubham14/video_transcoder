@@ -4,6 +4,7 @@ import dev.shubham.transcoder.config.PipelineProperties;
 import dev.shubham.transcoder.job.Job;
 import dev.shubham.transcoder.job.JobRepository;
 import dev.shubham.transcoder.job.JobStatus;
+import dev.shubham.transcoder.messaging.JobEventPublisher;
 import dev.shubham.transcoder.messaging.PrepareTask;
 import dev.shubham.transcoder.messaging.TaskPublisher;
 import dev.shubham.transcoder.messaging.TranscodeTask;
@@ -55,6 +56,7 @@ public class PrepareHandler {
     private final JobRepository jobRepository;
     private final SegmentRepository segmentRepository;
     private final TaskPublisher taskPublisher;
+    private final JobEventPublisher jobEventPublisher;
     private final PipelineProperties pipelineProperties;
     private final TransactionTemplate transactionTemplate;
 
@@ -66,6 +68,7 @@ public class PrepareHandler {
                           JobRepository jobRepository,
                           SegmentRepository segmentRepository,
                           TaskPublisher taskPublisher,
+                          JobEventPublisher jobEventPublisher,
                           PipelineProperties pipelineProperties,
                           PlatformTransactionManager transactionManager) {
         this.blobStore = blobStore;
@@ -76,6 +79,7 @@ public class PrepareHandler {
         this.jobRepository = jobRepository;
         this.segmentRepository = segmentRepository;
         this.taskPublisher = taskPublisher;
+        this.jobEventPublisher = jobEventPublisher;
         this.pipelineProperties = pipelineProperties;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
@@ -167,6 +171,7 @@ public class PrepareHandler {
                 }
             });
         });
+        jobEventPublisher.publish(jobId); // notify SSE watchers: job → PROCESSING
     }
 
     private void failJob(UUID jobId, String reason) {
@@ -176,6 +181,7 @@ public class PrepareHandler {
                 job.failWith(reason); // PREPARING -> FAILED
             }
         });
+        jobEventPublisher.publish(jobId); // notify SSE watchers: job → FAILED
     }
 
     /** Authoritative post-ffprobe limit gate. Package-visible for unit testing. */

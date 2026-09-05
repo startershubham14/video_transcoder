@@ -1,6 +1,7 @@
 package dev.shubham.transcoder.transcode;
 
 import dev.shubham.transcoder.job.JobRepository;
+import dev.shubham.transcoder.messaging.JobEventPublisher;
 import dev.shubham.transcoder.messaging.PackageTask;
 import dev.shubham.transcoder.messaging.TaskPublisher;
 import dev.shubham.transcoder.messaging.TranscodeTask;
@@ -41,6 +42,7 @@ public class TranscodeHandler {
     private final SegmentRepository segmentRepository;
     private final JobRepository jobRepository;
     private final TaskPublisher taskPublisher;
+    private final JobEventPublisher jobEventPublisher;
     private final TransactionTemplate transactionTemplate;
 
     public TranscodeHandler(Transcoder transcoder,
@@ -48,12 +50,14 @@ public class TranscodeHandler {
                             SegmentRepository segmentRepository,
                             JobRepository jobRepository,
                             TaskPublisher taskPublisher,
+                            JobEventPublisher jobEventPublisher,
                             PlatformTransactionManager transactionManager) {
         this.transcoder = transcoder;
         this.blobStore = blobStore;
         this.segmentRepository = segmentRepository;
         this.jobRepository = jobRepository;
         this.taskPublisher = taskPublisher;
+        this.jobEventPublisher = jobEventPublisher;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
@@ -102,6 +106,7 @@ public class TranscodeHandler {
                 publishPackageAfterCommit(jobId, rung);
             }
         });
+        jobEventPublisher.publish(jobId); // notify SSE watchers: a segment finished (progress tick)
     }
 
     /**
@@ -118,6 +123,7 @@ public class TranscodeHandler {
                         task.jobId(), task.segmentId(), detail);
             }
         });
+        jobEventPublisher.publish(task.jobId()); // notify SSE watchers: job → FAILED
     }
 
     /** Re-attempt the claim for an already-DONE segment (recovery path). */

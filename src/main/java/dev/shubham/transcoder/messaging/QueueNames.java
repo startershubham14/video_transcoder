@@ -27,4 +27,11 @@ public final class QueueNames {
 
     /** Terminal destination for permanent failures / exhausted retries. */
     public static final String DEAD_LETTER_QUEUE = "dead-letter.queue";
+
+    /**
+     * Fanout of job-changed notifications (a {@code jobId} poke). Each API instance binds its own
+     * auto-delete queue and, on receipt, pushes the current DB-derived snapshot to any SSE client
+     * watching that job. Notifications only — never job work.
+     */
+    public static final String JOB_EVENTS_EXCHANGE = "job.events";
 }

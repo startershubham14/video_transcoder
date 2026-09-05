@@ -420,6 +420,46 @@ Testcontainers). Browser playback is a Docker/`OUTPUT_MODE=hls` step for the own
 
 ---
 
+## 2026-09-05 — SSE live status push (deferred half of step 7)
+
+**Branch:** `claude/dev-branch-docs-review-6ded45` (published to `dev`)
+
+**Goal:** Implement `GET /jobs/{id}/events` so clients hold one streaming connection that pushes
+progress and, on completion, the output URLs — instead of polling.
+
+**Done (event-driven via RabbitMQ — the SSE endpoint is in `api`, progress happens in workers):**
+- **`JOB_EVENTS_EXCHANGE` fanout** + `JobEvent(jobId)` record + `JobEventPublisher` (separate from
+  `TaskPublisher`; broadcasts notifications, not work). Workers publish a `jobId` **poke** after each
+  state-affecting commit; the API re-reads authoritative state from Postgres — the event carries no
+  progress data (rule 2).
+- **Publish points (additive, after commit):** `PrepareHandler` (→PROCESSING, →FAILED),
+  `TranscodeHandler` (segment DONE tick, give-up →FAILED), `PackageHandler` (→COMPLETED),
+  `UploadTimeoutReaper` (→EXPIRED).
+- **`JobEventListener`** (`@Profile("api")`): binds an **anonymous auto-delete** queue to the fanout
+  (each API instance gets every event), manual-acks in `finally`, delegates to `OutputDeliveryService`.
+- **`OutputDeliveryService`** (rewritten): `ConcurrentHashMap<UUID, Set<SseEmitter>>` registry;
+  `register` pushes an immediate snapshot; `onJobEvent` snapshots via `JobStatusService.getStatus` and
+  pushes a `status` event to that job's emitters, completing + removing them on a terminal status.
+- **`StatusStreamController`** validates via `getStatus` (unknown → clean 404 through the advice), then
+  registers an `SseEmitter`. New `SseProperties` (`sse.timeout-minutes`, default 30) — kept out of
+  `PipelineProperties` to avoid churning its positional-record test call-sites. Added `JobStatus.isTerminal()`.
+
+**Key decisions:**
+- **Poke-then-read-DB:** events are just `jobId`; the API derives the snapshot from Postgres, so no
+  progress math is duplicated in the worker and stale/late events never lie.
+- **Explicit removal on terminal**, not via the emitter's `onCompletion` callback: a completed emitter
+  with no active servlet request doesn't fire that callback synchronously (also what makes the unit
+  test possible). Client-initiated closes still deregister via the callbacks.
+- **Anonymous auto-delete queue per API instance** so a scaled-out API still delivers to whichever
+  instance holds the SSE connection.
+
+**Verified:** `./mvnw -B verify` green (**67 tests**; only `FanInRaceTest` `@Disabled`). Live streaming
+is a Docker step for the owner (`curl -N /jobs/{id}/events`).
+
+**Open follow-ups:** heartbeat/keep-alive for idle connections; `Last-Event-ID` resume.
+
+---
+
 ## Backlog — Observability & operability (later tasks, requested)
 
 **Monitoring dashboard / service status**

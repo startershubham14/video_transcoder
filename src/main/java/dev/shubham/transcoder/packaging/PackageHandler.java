@@ -2,6 +2,7 @@ package dev.shubham.transcoder.packaging;
 
 import dev.shubham.transcoder.config.PipelineProperties;
 import dev.shubham.transcoder.job.JobRepository;
+import dev.shubham.transcoder.messaging.JobEventPublisher;
 import dev.shubham.transcoder.messaging.PackageTask;
 import dev.shubham.transcoder.storage.BlobStore;
 import dev.shubham.transcoder.transcode.Segment;
@@ -42,6 +43,7 @@ public class PackageHandler {
     private final BlobStore blobStore;
     private final SegmentRepository segmentRepository;
     private final JobRepository jobRepository;
+    private final JobEventPublisher jobEventPublisher;
     private final TransactionTemplate transactionTemplate;
 
     public PackageHandler(PackagerFactory packagerFactory,
@@ -49,12 +51,14 @@ public class PackageHandler {
                           BlobStore blobStore,
                           SegmentRepository segmentRepository,
                           JobRepository jobRepository,
+                          JobEventPublisher jobEventPublisher,
                           PlatformTransactionManager transactionManager) {
         this.packagerFactory = packagerFactory;
         this.pipelineProperties = pipelineProperties;
         this.blobStore = blobStore;
         this.segmentRepository = segmentRepository;
         this.jobRepository = jobRepository;
+        this.jobEventPublisher = jobEventPublisher;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
@@ -104,6 +108,7 @@ public class PackageHandler {
                 log.info("[package] job {} COMPLETED ({} rungs)", jobId, rungs.size());
             }
         });
+        jobEventPublisher.publish(jobId); // notify SSE watchers: job → COMPLETED
     }
 
     private static void deleteRecursively(Path dir) {
