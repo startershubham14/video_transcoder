@@ -20,7 +20,11 @@ what's left so a new session can continue on `dev` without prior context.
   origin) with bounded retries → DLQ in `AbstractStageWorker`; transcode give-up marks the segment +
   job FAILED (no hung jobs); `ReconciliationSweep` + `UploadTimeoutReaper` bodies; global
   `@RestControllerAdvice` (`web.ApiExceptionHandler`). New knob `RECONCILIATION_STALE_SECONDS`.
-- `./mvnw -B verify` is green (56 tests; only `FanInRaceTest` `@Disabled` for Testcontainers). CI
+- **HLS is DONE:** `HlsPackager` (2nd Packager) reuses the transcoded `.ts` and writes per-rung media
+  playlists + a master `.m3u8`; delivered **public-read** (MinIO `mc anonymous set download`), status
+  endpoint returns the public `…/master.m3u8`. Play via `/player.html?src=<master>` (hls.js). Run with
+  `OUTPUT_MODE=hls docker compose up --build`. MP4 delivery unchanged (presigned).
+- `./mvnw -B verify` is green (63 tests; only `FanInRaceTest` `@Disabled` for Testcontainers). CI
   (`.github/workflows/ci.yml`) runs `./mvnw verify` on PRs to `main`.
 
 ## ⚠️ Local-only files the new session needs
@@ -68,7 +72,6 @@ Postgres `SELECT status FROM jobs...`. Job → `COMPLETED` when all rungs packag
 ## What's left (backlog — details in DEVLOG.md)
 - **SSE push** (status step, deferred half): implement `OutputDeliveryService` + `StatusStreamController`
   (`GET /jobs/{id}/events`) to push progress/URLs to connected clients; polling already works.
-- **HLS**: implement `HlsPackager` (2nd Packager) + `finalizeJob` master playlist + `hls.js` page.
 - **Reliability follow-ups** (core done): segment `RETRY_WAIT` observability (the message header is the
   authoritative retry counter); prepare/package give-up job-failing; package-stage reconciliation; DLQ
   drain/inspection tooling.

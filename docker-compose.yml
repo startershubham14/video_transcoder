@@ -96,7 +96,8 @@ services:
           echo 'waiting for minio...'; sleep 2;
         done;
         mc mb --ignore-existing "local/$${BUCKET}";
-        echo "bucket $${BUCKET} ready";
+        mc anonymous set download "local/$${BUCKET}";
+        echo "bucket $${BUCKET} ready (anonymous download enabled for HLS playback)";
 
   clamav:
     image: clamav/clamav:latest

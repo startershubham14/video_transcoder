@@ -16,6 +16,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+// (Optional imported above is used by the HLS masterOutputKey stub)
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -118,6 +119,7 @@ class JobStatusServiceTest {
         when(segments.findDistinctRungs(id)).thenReturn(List.of("720", "480"));
 
         Packager mp4 = mock(Packager.class);
+        when(mp4.masterOutputKey(id)).thenReturn(Optional.empty()); // MP4 has no single master
         when(mp4.outputKey(id, "720")).thenReturn(id + "/720.mp4");
         when(mp4.outputKey(id, "480")).thenReturn(id + "/480.mp4");
         PackagerFactory factory = mock(PackagerFactory.class);
@@ -134,6 +136,36 @@ class JobStatusServiceTest {
         assertEquals(100, res.progress());
         assertEquals(List.of("https://s3.local/720", "https://s3.local/480"), res.outputUrls());
         verify(blobStore).presignGet(eq(id + "/720.mp4"), eq(Duration.ofMinutes(60)));
+    }
+
+    @Test
+    void completedHlsJobReturnsPublicMasterUrl() throws Exception {
+        UUID id = UUID.randomUUID();
+        Job job = mock(Job.class);
+        when(job.getId()).thenReturn(id);
+        when(job.getStatus()).thenReturn(JobStatus.COMPLETED);
+        when(job.getErrorReason()).thenReturn(null);
+
+        JobRepository jobs = mock(JobRepository.class);
+        when(jobs.findById(id)).thenReturn(Optional.of(job));
+        SegmentRepository segments = mock(SegmentRepository.class);
+
+        Packager hls = mock(Packager.class);
+        String masterKey = id + "/master.m3u8";
+        when(hls.masterOutputKey(id)).thenReturn(Optional.of(masterKey));
+        PackagerFactory factory = mock(PackagerFactory.class);
+        when(factory.forMode(OutputMode.HLS)).thenReturn(hls);
+
+        BlobStore blobStore = mock(BlobStore.class);
+        String publicMaster = "http://localhost:9000/transcoder/" + masterKey;
+        when(blobStore.publicUrl(masterKey)).thenReturn(url(publicMaster));
+
+        JobStatusService service = new JobStatusService(jobs, segments, blobStore, factory, props("hls"));
+
+        JobStatusResponse res = service.getStatus(id);
+
+        assertEquals(List.of(publicMaster), res.outputUrls());
+        verify(blobStore, never()).presignGet(any(), any());
     }
 
     @Test

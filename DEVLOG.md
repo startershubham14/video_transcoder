@@ -381,6 +381,45 @@ Testcontainers e2e for race/idempotency/routing (deps in place).
 
 ---
 
+## 2026-09-05 — HLS packaging (the second Packager — primary OCP test)
+
+**Branch:** `claude/dev-branch-docs-review-6ded45` (published to `dev`)
+
+**Goal:** Implement the HLS output mode as a second `Packager` without touching `Mp4Packager` or the
+transcode stage — the project's primary Open/Closed test.
+
+**Done:**
+- **`HlsPackager`** — reuses the rung's already-transcoded MPEG-TS segments (`{jobId}/{rung}/{index}.ts`).
+  `packageRung` authors a VOD media playlist referencing them **relatively** (`../{rung}/{index}.ts`),
+  `#EXTINF` from `MediaProbe.probe(seg).durationSeconds()`, uploads it to `{jobId}/hls/{rung}.m3u8`.
+  `finalizeJob` authors the master (`#EXT-X-STREAM-INF` per rung, `BANDWIDTH` = video + 128k audio,
+  nominal 16:9 `RESOLUTION`, sorted highest-first) → `{jobId}/master.m3u8`. Playlist authoring is pure,
+  unit-tested static helpers.
+- **`Packager.masterOutputKey(jobId)`** — new additive `default` (empty). HLS overrides →
+  `{jobId}/master.m3u8`. Keeps mode-branching out of callers; `Mp4Packager` untouched.
+- **`BlobStore.publicUrl(key)`** (+ `S3BlobStore` impl: path-style host-reachable endpoint) for
+  public-read HLS assets.
+- **`JobStatusService`** — returns the single public master URL when `masterOutputKey` is present (HLS),
+  else per-rung presigned URLs (MP4). No reliance on `jobs.manifest_key` (derived, not stored).
+- **docker-compose** — `minio-setup` runs `mc anonymous set download` so HLS siblings are fetchable.
+- **`static/player.html`** — minimal hls.js page (`?src=<master>`), served by the api profile.
+
+**Key decisions:**
+- **Reuse the transcoded `.ts`; only write playlists** (architecture doc §8) — demonstrates that MP4↔HLS
+  differ *only* in the packaging step. No re-encode/re-segment.
+- **Delivery decision (confirmed with owner):** HLS is many sibling files a single presigned URL can't
+  cover, so HLS outputs are **public-read** in local MinIO and delivered as a plain master URL. Not a
+  Golden-rule violation (no API bytes, no persisted presigned URLs); prod would use signed cookies/CDN.
+  MP4 delivery stays presigned.
+- `masterOutputKey` seam keeps `JobStatusService` from branching on `OUTPUT_MODE`.
+
+**Verified:** `./mvnw -B verify` green (**63 tests**; only `FanInRaceTest` `@Disabled` for
+Testcontainers). Browser playback is a Docker/`OUTPUT_MODE=hls` step for the owner (see HANDOFF).
+
+**Open follow-ups:** per-prefix (not whole-bucket) public policy; prod signed-cookie/CDN delivery.
+
+---
+
 ## Backlog — Observability & operability (later tasks, requested)
 
 **Monitoring dashboard / service status**

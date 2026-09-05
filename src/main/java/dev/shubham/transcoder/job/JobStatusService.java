@@ -14,6 +14,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -80,18 +81,24 @@ public class JobStatusService {
     }
 
     /**
-     * Presigned GET URL(s) for the job's outputs. HLS delivers the single master manifest;
-     * MP4 delivers one standalone file per rung. Keys are derived (never stored) via the
-     * configured {@link Packager}; callers never branch on {@link OutputMode} themselves.
+     * URL(s) for the job's outputs. A mode with a single job-level artifact (HLS: the master
+     * {@code .m3u8}) delivers that one URL; otherwise (MP4) one presigned URL per rung. Keys are
+     * derived (never stored) via the configured {@link Packager}; callers never branch on
+     * {@link OutputMode} themselves.
+     *
+     * <p>HLS is served as a plain public URL (its manifest references many sibling files a single
+     * presigned URL couldn't cover); MP4 stays presigned.
      */
     private List<String> outputUrls(Job job) {
         OutputMode mode = OutputMode.fromConfig(pipelineProperties.outputMode());
         Packager packager = packagerFactory.forMode(mode);
-        Duration ttl = Duration.ofMinutes(pipelineProperties.downloadUrlTtlMinutes());
 
-        if (mode == OutputMode.HLS && job.getManifestKey() != null) {
-            return List.of(blobStore.presignGet(job.getManifestKey(), ttl).toString());
+        Optional<String> master = packager.masterOutputKey(job.getId());
+        if (master.isPresent()) {
+            return List.of(blobStore.publicUrl(master.get()).toString());
         }
+
+        Duration ttl = Duration.ofMinutes(pipelineProperties.downloadUrlTtlMinutes());
         return segmentRepository.findDistinctRungs(job.getId()).stream()
                 .map(rung -> packager.outputKey(job.getId(), rung))
                 .map(key -> blobStore.presignGet(key, ttl).toString())

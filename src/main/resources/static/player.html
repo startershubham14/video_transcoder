@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HLS Player — video-transcoder</title>
+  <style>
+    body { font: 14px system-ui, sans-serif; margin: 2rem auto; max-width: 900px; padding: 0 1rem; color: #222; }
+    h1 { font-size: 1.2rem; }
+    form { display: flex; gap: .5rem; margin: 1rem 0; }
+    input[type=url] { flex: 1; padding: .5rem; font: inherit; }
+    button { padding: .5rem 1rem; font: inherit; cursor: pointer; }
+    video { width: 100%; background: #000; border-radius: 4px; }
+    #status { color: #666; margin-top: .5rem; min-height: 1.2em; }
+    code { background: #f2f2f2; padding: 0 .3em; border-radius: 3px; }
+  </style>
+</head>
+<body>
+  <h1>HLS playback</h1>
+  <p>Paste a master <code>.m3u8</code> URL (the <code>outputUrls</code> value from
+     <code>GET /jobs/{id}</code> when <code>OUTPUT_MODE=hls</code>), or pass it as
+     <code>?src=&lt;url&gt;</code>.</p>
+  <form id="load">
+    <input type="url" id="src" placeholder="http://localhost:9000/transcoder/&lt;jobId&gt;/master.m3u8" required>
+    <button type="submit">Play</button>
+  </form>
+  <video id="video" controls playsinline></video>
+  <p id="status"></p>
+
+  <!-- hls.js from the CSP-allowed CDN; native HLS (Safari) is the fallback. -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.15/hls.min.js"></script>
+  <script>
+    const video = document.getElementById('video');
+    const input = document.getElementById('src');
+    const statusEl = document.getElementById('status');
+    let hls;
+
+    function setStatus(msg) { statusEl.textContent = msg; }
+
+    function play(url) {
+      if (!url) return;
+      if (hls) { hls.destroy(); hls = null; }
+      if (window.Hls && window.Hls.isSupported()) {
+        hls = new window.Hls();
+        hls.loadSource(url);
+        hls.attachMedia(video);
+        hls.on(window.Hls.Events.MANIFEST_PARSED, (_e, data) => {
+          setStatus(`Loaded ${data.levels.length} rung(s); playing.`);
+          video.play().catch(() => {});
+        });
+        hls.on(window.Hls.Events.ERROR, (_e, data) => {
+          if (data.fatal) setStatus(`Error: ${data.type} / ${data.details}`);
+        });
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = url; // Safari native HLS
+        video.addEventListener('loadedmetadata', () => video.play().catch(() => {}));
+        setStatus('Playing via native HLS.');
+      } else {
+        setStatus('HLS is not supported in this browser.');
+      }
+    }
+
+    document.getElementById('load').addEventListener('submit', (e) => {
+      e.preventDefault();
+      play(input.value.trim());
+    });
+
+    const fromQuery = new URLSearchParams(location.search).get('src');
+    if (fromQuery) { input.value = fromQuery; play(fromQuery); }
+  </script>
+</body>
+</html>

@@ -319,6 +319,10 @@ and refactor to the pattern when the second case actually arrives (YAGNI).
 - Run FFmpeg workers locked down: non-root, resource limits, no unnecessary network. Treat
   every input as hostile (decoder-exploit surface).
 - S3 lifecycle rules: abort incomplete multipart uploads; expire intermediates.
+- **HLS delivery**: an HLS manifest references many sibling files a single presigned URL can't cover,
+  so HLS outputs are served **public-read** (local MinIO: `mc anonymous set download`; status endpoint
+  returns the plain public master URL). MP4 stays presigned. Production would front this with signed
+  cookies / a CDN rather than a public bucket.
 
 ## Git
 
