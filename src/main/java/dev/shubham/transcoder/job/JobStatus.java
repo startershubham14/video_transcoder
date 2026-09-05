@@ -11,5 +11,10 @@ public enum JobStatus {
     CONCATENATING,
     COMPLETED,
     FAILED,
-    EXPIRED
+    EXPIRED;
+
+    /** No further transitions — the SSE stream can close and no more events will follow. */
+    public boolean isTerminal() {
+        return this == COMPLETED || this == FAILED || this == EXPIRED;
+    }
 }

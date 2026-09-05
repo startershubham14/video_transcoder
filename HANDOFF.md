@@ -24,7 +24,11 @@ what's left so a new session can continue on `dev` without prior context.
   playlists + a master `.m3u8`; delivered **public-read** (MinIO `mc anonymous set download`), status
   endpoint returns the public `…/master.m3u8`. Play via `/player.html?src=<master>` (hls.js). Run with
   `OUTPUT_MODE=hls docker compose up --build`. MP4 delivery unchanged (presigned).
-- `./mvnw -B verify` is green (63 tests; only `FanInRaceTest` `@Disabled` for Testcontainers). CI
+- **SSE is DONE:** `GET /jobs/{id}/events` streams live `status` events (progress, then output URLs on
+  completion) and closes on a terminal state. Event-driven: workers publish a `jobId` poke to the
+  `job.events` **fanout** after each commit; each api instance consumes on its own auto-delete queue and
+  pushes a Postgres-derived snapshot (`OutputDeliveryService`). Knob `SSE_TIMEOUT_MINUTES` (default 30).
+- `./mvnw -B verify` is green (67 tests; only `FanInRaceTest` `@Disabled` for Testcontainers). CI
   (`.github/workflows/ci.yml`) runs `./mvnw verify` on PRs to `main`.
 
 ## ⚠️ Local-only files the new session needs
@@ -70,8 +74,6 @@ Postgres `SELECT status FROM jobs...`. Job → `COMPLETED` when all rungs packag
   native enums broke Hibernate bulk-update casts. Ids are DB-generated (`@Generated INSERT`).
 
 ## What's left (backlog — details in DEVLOG.md)
-- **SSE push** (status step, deferred half): implement `OutputDeliveryService` + `StatusStreamController`
-  (`GET /jobs/{id}/events`) to push progress/URLs to connected clients; polling already works.
 - **Reliability follow-ups** (core done): segment `RETRY_WAIT` observability (the message header is the
   authoritative retry counter); prepare/package give-up job-failing; package-stage reconciliation; DLQ
   drain/inspection tooling.

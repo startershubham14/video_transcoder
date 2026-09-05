@@ -263,6 +263,9 @@ and refactor to the pattern when the second case actually arrives (YAGNI).
     Do not waste retries on errors that can't succeed.
 - **`prefetch = 1`** per worker so backlogs spread evenly.
 - Messages are small JSON records referencing S3 keys — never payload bytes.
+- **Live status** uses a `job.events` **fanout**: workers publish a `jobId` poke after each commit;
+  every API instance binds its own auto-delete queue and pushes a Postgres-derived snapshot to SSE
+  clients (`GET /jobs/{id}/events`). The event is only a poke — state is read from Postgres (rule 2).
 
 ## Configuration
 

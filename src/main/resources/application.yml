@@ -48,6 +48,10 @@ pipeline:
   download-url-ttl-minutes: ${DOWNLOAD_URL_TTL_MINUTES:60}
   reconciliation-stale-seconds: ${RECONCILIATION_STALE_SECONDS:120}
 
+# Server-Sent Events (live job status stream).
+sse:
+  timeout-minutes: ${SSE_TIMEOUT_MINUTES:30}
+
 aws:
   region: ${AWS_REGION:us-east-1}
   s3:

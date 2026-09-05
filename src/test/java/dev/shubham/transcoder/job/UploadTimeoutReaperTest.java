@@ -22,7 +22,9 @@ import static org.mockito.Mockito.when;
 class UploadTimeoutReaperTest {
 
     private static UploadTimeoutReaper reaper(JobRepository repo) {
-        return new UploadTimeoutReaper(repo, mock(PlatformTransactionManager.class));
+        return new UploadTimeoutReaper(repo,
+                mock(dev.shubham.transcoder.messaging.JobEventPublisher.class),
+                mock(PlatformTransactionManager.class));
     }
 
     @Test

@@ -66,6 +66,12 @@ public class RabbitMqConfig {
         return new FanoutExchange(QueueNames.RETRY_EXCHANGE, true, false);
     }
 
+    /** Fanout of job-changed notifications; API instances bind their own auto-delete queues. */
+    @Bean
+    FanoutExchange jobEventsExchange() {
+        return new FanoutExchange(QueueNames.JOB_EVENTS_EXCHANGE, true, false);
+    }
+
     @Bean
     Binding retryBinding() {
         return BindingBuilder.bind(retryDelayQueue()).to(retryExchange());

@@ -152,8 +152,13 @@ sequenceDiagram
 `GET /jobs/{id}` returns the job's status, a segment-derived `progress` (0–100), and — once the
 job is `COMPLETED` — freshly minted presigned download URLs (one per rung for MP4; the master
 manifest for HLS). URLs are never stored; they are signed on demand and expire
-(`DOWNLOAD_URL_TTL_MINUTES`). Unknown ids return `404`. (Live SSE push at `/jobs/{id}/events` is
-planned; polling is the baseline.)
+(`DOWNLOAD_URL_TTL_MINUTES`). Unknown ids return `404`.
+
+For a live view, `GET /jobs/{id}/events` is a Server-Sent Events stream that pushes a `status` event
+on every change (progress, then the output URLs on completion) and closes when the job reaches a
+terminal state — one connection instead of polling (`curl -N http://localhost:8080/jobs/<id>/events`).
+Internally, workers broadcast a small `jobId` poke on a `job.events` fanout after each commit; the API
+re-reads the authoritative snapshot from Postgres and pushes it.
 
 With `OUTPUT_MODE=hls`, packaging writes per-rung media playlists + a master `.m3u8` (reusing the
 same transcoded segments — only the packaging step differs), and the status response returns the
