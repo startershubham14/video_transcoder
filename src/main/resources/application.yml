@@ -34,6 +34,9 @@ management:
   endpoint:
     health:
       show-details: when-authorized
+  metrics:
+    tags:
+      application: video-transcoder   # common label on every metric series
 
 # Pipeline tuning knobs, bound by PipelineProperties. Defaults mirror .env.example.
 pipeline:

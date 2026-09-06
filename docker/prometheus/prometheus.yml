@@ -1,0 +1,10 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  # Pipeline metrics are computed on the API (from Postgres + RabbitMQ), so the API is the only
+  # target. Workers stay headless — no per-replica scraping needed.
+  - job_name: video-transcoder-api
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["api:8080"]

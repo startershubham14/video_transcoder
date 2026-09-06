@@ -166,6 +166,15 @@ master playlist URL. HLS outputs are served **public-read** from MinIO for the d
 references many sibling files a single presigned URL can't cover; production would use signed
 cookies / a CDN). Play it in the browser at `http://localhost:8080/player.html?src=<master url>`.
 
+### Observability
+
+The API exposes Prometheus metrics at `/actuator/prometheus`, computed from Postgres + RabbitMQ (so
+the workers stay headless): `pipeline_jobs{status}`, `pipeline_segments{status}`, and
+`pipeline_queue_depth{queue}`. `docker compose up` also starts **Prometheus** (`:9090`, scraping the
+API) and **Grafana** (`:3000`, anonymous) with a provisioned dashboard — scale the transcode tier
+(`docker compose up --scale transcode-worker=5`) and watch the queue depth drain and the
+segments-completed rate climb.
+
 ## Documentation
 
 - [`docs/design-notes.md`](docs/design-notes.md) — the **why**: project concept, stack
