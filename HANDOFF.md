@@ -74,9 +74,9 @@ Postgres `SELECT status FROM jobs...`. Job → `COMPLETED` when all rungs packag
   native enums broke Hibernate bulk-update casts. Ids are DB-generated (`@Generated INSERT`).
 
 ## What's left (backlog — details in DEVLOG.md)
-- **Reliability follow-ups** (core done): segment `RETRY_WAIT` observability (the message header is the
-  authoritative retry counter); prepare/package give-up job-failing; package-stage reconciliation; DLQ
-  drain/inspection tooling.
+- **Reliability** (core + follow-ups done): all stages fail the job on give-up; segments show
+  `RETRY_WAIT`/`attempts` on retry; the sweep re-drives stuck `PREPARING`/`QUEUED`/`CONCATENATING`.
+  Remaining nicety: DLQ drain/inspection tooling.
 - **Observability** (requested): Actuator + Micrometer + Prometheus + Grafana dashboard (services
   health, queue depth, throughput); structured logging with MDC (jobId/segmentId/rung).
 - **Testcontainers** integration tests (fan-in race, idempotency, error routing — placeholders

@@ -51,8 +51,9 @@ public interface SegmentRepository extends JpaRepository<Segment, UUID> {
     List<String> findDistinctRungs(@Param("jobId") UUID jobId);
 
     /**
-     * Mark a QUEUED segment PROCESSING (observability). Idempotent — a redelivery of an
-     * already-PROCESSING/DONE segment affects 0 rows.
+     * Mark a QUEUED (or retried) segment PROCESSING (observability). Idempotent — a redelivery of an
+     * already-PROCESSING/DONE segment affects 0 rows. A transient retry parks the segment in
+     * RETRY_WAIT (see {@link #markRetryWait}); its redelivery moves it back to PROCESSING here.
      */
     @Modifying
     @Query("""
@@ -60,9 +61,27 @@ public interface SegmentRepository extends JpaRepository<Segment, UUID> {
                set s.status = dev.shubham.transcoder.transcode.SegmentStatus.PROCESSING,
                    s.updatedAt = CURRENT_TIMESTAMP
              where s.id = :segmentId
-               and s.status = dev.shubham.transcoder.transcode.SegmentStatus.QUEUED
+               and s.status in (
+                   dev.shubham.transcoder.transcode.SegmentStatus.QUEUED,
+                   dev.shubham.transcoder.transcode.SegmentStatus.RETRY_WAIT)
             """)
     int markProcessing(@Param("segmentId") UUID segmentId);
+
+    /**
+     * Park a segment in RETRY_WAIT after a transient failure and bump its attempt counter, so
+     * {@code segments.status}/{@code attempts} reflect the retry (the message header remains the
+     * authoritative retry count). Guarded to PROCESSING; idempotent otherwise.
+     */
+    @Modifying
+    @Query("""
+            update Segment s
+               set s.status = dev.shubham.transcoder.transcode.SegmentStatus.RETRY_WAIT,
+                   s.attempts = s.attempts + 1,
+                   s.updatedAt = CURRENT_TIMESTAMP
+             where s.id = :segmentId
+               and s.status = dev.shubham.transcoder.transcode.SegmentStatus.PROCESSING
+            """)
+    int markRetryWait(@Param("segmentId") UUID segmentId);
 
     /**
      * Mark my segment DONE and record its output key, idempotently.

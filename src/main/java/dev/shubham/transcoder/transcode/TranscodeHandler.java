@@ -126,6 +126,14 @@ public class TranscodeHandler {
         jobEventPublisher.publish(task.jobId()); // notify SSE watchers: job → FAILED
     }
 
+    /**
+     * Park the segment in RETRY_WAIT when a transient failure is scheduled for retry (invoked by
+     * {@link TranscodeListener#onRetry}) — observability only; the message header drives the retry.
+     */
+    public void markSegmentRetryWait(UUID segmentId) {
+        transactionTemplate.executeWithoutResult(status -> segmentRepository.markRetryWait(segmentId));
+    }
+
     /** Re-attempt the claim for an already-DONE segment (recovery path). */
     private void claim(UUID jobId, String rung) {
         transactionTemplate.executeWithoutResult(status -> {

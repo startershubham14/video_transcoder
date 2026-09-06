@@ -10,7 +10,9 @@ import org.springframework.amqp.core.MessagePropertiesBuilder;
 import java.io.IOException;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -39,6 +41,7 @@ class ErrorRoutingTest {
     private static final class TestWorker extends AbstractStageWorker<String> {
         private final RuntimeException toThrow;
         boolean gaveUp = false;
+        Integer retriedAttempt = null;
 
         TestWorker(RetryPublisher retryPublisher, RuntimeException toThrow) {
             super(new ErrorClassifier(), retryPublisher, props(), "test.queue");
@@ -65,6 +68,11 @@ class ErrorRoutingTest {
         protected void onGiveUp(String task, Throwable cause) {
             gaveUp = true;
         }
+
+        @Override
+        protected void onRetry(String task, int attempt) {
+            retriedAttempt = attempt;
+        }
     }
 
     private static Message messageWithAttempts(Integer attempts) {
@@ -87,6 +95,7 @@ class ErrorRoutingTest {
         verify(channel).basicNack(TAG, false, false); // → DLX → dead-letter.queue
         verify(channel, never()).basicAck(anyLong(), anyBoolean());
         assertTrue(worker.gaveUp);
+        assertNull(worker.retriedAttempt); // permanent → no retry hook
     }
 
     @Test
@@ -101,6 +110,7 @@ class ErrorRoutingTest {
         verify(channel).basicAck(TAG, false); // original acked; the delayed copy carries the work
         verify(channel, never()).basicNack(anyLong(), anyBoolean(), anyBoolean());
         assertFalse(worker.gaveUp);
+        assertEquals(1, worker.retriedAttempt); // onRetry hook fired with the attempt number
     }
 
     @Test
@@ -113,6 +123,7 @@ class ErrorRoutingTest {
 
         verify(retryPublisher).scheduleRetry(any(Message.class), eq("test.queue"), eq(2), eq(8000L));
         verify(channel).basicAck(TAG, false);
+        assertEquals(2, worker.retriedAttempt);
     }
 
     @Test
@@ -126,6 +137,7 @@ class ErrorRoutingTest {
         verify(retryPublisher, never()).scheduleRetry(any(), anyString(), anyInt(), anyLong());
         verify(channel).basicNack(TAG, false, false);
         assertTrue(worker.gaveUp);
+        assertNull(worker.retriedAttempt); // exhausted → give up, no further retry hook
     }
 
     @Test
