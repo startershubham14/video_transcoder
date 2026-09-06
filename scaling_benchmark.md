@@ -28,13 +28,26 @@ same machine, no other heavy load.
 - Note the point where the queue stops draining faster: that's your practical worker ceiling
   on this machine.
 
-## Results (fill in after running)
+## Results
 
-| Workers | Median wall-clock (min) | Throughput (jobs/min) | Speedup vs 1 |
-|--------:|------------------------:|----------------------:|-------------:|
-| 1       | —                       | —                     | 1.00×        |
-| 2       | —                       | —                     | —            |
-| 4       | —                       | —                     | —            |
+Preliminary run (2026-09-06): **6 jobs** of a 12s 1280×720 clip (→ 480p + 360p rungs), `bench.py`,
+0 failures at every worker count. **Single run each** (not the 3× median the method calls for), on a
+laptop with the whole stack (api, postgres, rabbitmq, minio, clamav, prometheus, grafana) co-resident —
+so treat these as illustrative, not rigorous.
+
+| Workers | Wall-clock (min) | Throughput (jobs/min) | Speedup vs 1 |
+|--------:|-----------------:|----------------------:|-------------:|
+| 1       | 2.30             | 2.61                  | 1.00×        |
+| 2       | 0.65             | 9.23                  | 3.54×        |
+| 4       | 1.26             | 4.77                  | 1.83×        |
+
+**Reading it:** throughput climbs steeply 1→2, then **regresses at 4** — exactly the plateau the method
+predicts. With FFmpeg workers plus all the infra containers competing for a laptop's handful of cores,
+4 transcode workers oversubscribe the CPU and thrash, so more workers *hurt*. (The 1→2 jump also looks
+super-linear, a warm-up/measurement artifact of single runs.) The practical worker ceiling on this box
+is ~2. For a rigorous curve: use a heavier clip (transcode-bound, not overhead-bound), take the 3×
+median, and ideally isolate the workers from the other services. Watch `pipeline_queue_depth` in Grafana
+during a run to see the transcode queue drain faster at W=2 and back up under W=4 contention.
 
 _Chart: plot workers (x) vs throughput (y); commit the image and embed it in the README._
 

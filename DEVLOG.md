@@ -645,6 +645,30 @@ under the pathological race.
 
 ---
 
+## 2026-09-06 — Scaling benchmark run (live, Docker)
+
+**Branch:** `claude/dev-branch-docs-review-6ded45` (published to `dev`)
+
+Ran `scripts/bench.py` against the live stack (api rebuilt with the RabbitAdmin fix; ClamAV `clamd`
+back up) — 6 jobs of a 12s 1280×720 clip (→ 480p+360p rungs), **0 failures** at every worker count.
+This also served as a full live smoke e2e (upload → prepare/scan → transcode → package → COMPLETED,
+status polled via `GET /jobs/{id}`).
+
+| Workers | Wall-clock | Throughput | Speedup |
+|--:|--:|--:|--:|
+| 1 | 2.30 min | 2.61 jobs/min | 1.00× |
+| 2 | 0.65 min | 9.23 jobs/min | 3.54× |
+| 4 | 1.26 min | 4.77 jobs/min | 1.83× |
+
+**Finding:** throughput climbs 1→2 then **regresses at 4** — the predicted plateau: on a laptop with all
+infra containers co-resident, 4 FFmpeg workers oversubscribe the CPU. Single-run + tiny (overhead-bound)
+clip, so noisy (1→2 looks super-linear from warm-up). Recorded honestly in `scaling_benchmark.md` with
+the caveats + how to get a rigorous curve (heavier clip, 3× median, isolate workers). Gotchas hit:
+MSYS mangles `/tmp` container paths (use `MSYS_NO_PATHCONV=1`); `FixedLadderPolicy` needs a source
+taller than a rung (a 360p clip yields zero rungs → rejected — used 720p).
+
+---
+
 ## Backlog — Observability & operability (later tasks, requested)
 
 **Monitoring dashboard / service status**
