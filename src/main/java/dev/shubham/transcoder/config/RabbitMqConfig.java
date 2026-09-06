@@ -6,6 +6,8 @@ import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.FanoutExchange;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.QueueBuilder;
+import org.springframework.amqp.rabbit.connection.ConnectionFactory;
+import org.springframework.amqp.rabbit.core.RabbitAdmin;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
@@ -14,8 +16,8 @@ import org.springframework.context.annotation.Configuration;
 /**
  * Declares the topology of the three-stage pipeline: the {@code prepare}, {@code transcode}
  * and {@code concat} work queues, plus the reliability plumbing — a terminal
- * {@code dead-letter} queue and a {@code retry.delay} queue for TTL backoff. Spring Boot's
- * auto-configured {@code RabbitAdmin} declares these {@link Queue} beans on startup, so the
+ * {@code dead-letter} queue and a {@code retry.delay} queue for TTL backoff. The {@code RabbitAdmin}
+ * declared here (see {@link #rabbitAdmin}) declares these {@link Queue} beans on startup, so the
  * broker topology exists before any listener starts.
  *
  * <p>Names live in {@link QueueNames}. The stage queues dead-letter to
@@ -89,5 +91,14 @@ public class RabbitMqConfig {
     @Bean
     MessageConverter jsonMessageConverter() {
         return new Jackson2JsonMessageConverter();
+    }
+
+    /**
+     * Declared explicitly (rather than relying on Boot's auto-configured admin) so it is always
+     * present for {@code PipelineMetrics}' queue-depth gauges and to declare the topology above.
+     */
+    @Bean
+    RabbitAdmin rabbitAdmin(ConnectionFactory connectionFactory) {
+        return new RabbitAdmin(connectionFactory);
     }
 }

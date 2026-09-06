@@ -563,6 +563,30 @@ the Results table stays to-be-filled.
 
 ---
 
+## 2026-09-06 — Fix: api failed to boot (PipelineMetrics needed RabbitAdmin)
+
+**Branch:** `claude/dev-branch-docs-review-6ded45` (published to `dev`)
+
+**What went wrong:** the observability commit's `PipelineMetrics` injects `RabbitAdmin`, but no such
+bean resolved at runtime → the **api context failed to start** (`APPLICATION FAILED TO START`,
+container Exited(1)). The unit test mocked `RabbitAdmin`, so it passed — a runtime-wiring bug that
+compiled and unit-tested clean. Caught by a real `docker compose up` (Docker was reachable this
+session).
+
+**Fix:** declare an explicit `RabbitAdmin` bean in `RabbitMqConfig` (`new RabbitAdmin(connectionFactory)`)
+rather than relying on Boot's auto-configured one. Natural home — that config already owns the queue/
+exchange topology the admin declares. Updated the class Javadoc accordingly.
+
+**Verified live:** rebuilt the api image and restarted it in the running stack — boots clean
+(`Started TranscoderApplication`), and `GET /actuator/prometheus` serves the gauges
+(`pipeline_jobs{status="COMPLETED"} 5`, `pipeline_segments{status="DONE"} 168`,
+`pipeline_queue_depth{queue=...} 0` while idle). `./mvnw -B verify` still green (72 tests).
+
+**Lesson:** metric/bean wiring that unit tests can't catch needs at least one real boot — prefer a
+lightweight context/smoke check for DI wiring in future.
+
+---
+
 ## Backlog — Observability & operability (later tasks, requested)
 
 **Monitoring dashboard / service status**
