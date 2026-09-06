@@ -534,6 +534,35 @@ verified by the owner in Docker.
 
 ---
 
+## 2026-09-06 — Scaling demo runner (build-order step 9)
+
+**Branch:** `claude/dev-branch-docs-review-6ded45` (published to `dev`)
+
+**Goal:** Provide the tooling to measure "transcode throughput scales with worker count" and make
+`scaling_benchmark.md` runnable (it was method + a pseudocode stub).
+
+**Done:**
+- **`scripts/bench.py`** (stdlib only) — submits K jobs via the thin upload handshake (same flow as
+  `smoke.py`: POST /uploads → PUT presigned parts → POST /complete), starts the clock at first
+  submission, polls `GET /jobs/{id}` until every job is terminal, and prints wall-clock, throughput
+  (jobs/min), failures, and a ready-to-paste results-table row. Flags: `--copies`, `--label`, `--api`,
+  `--poll`, `--timeout`.
+- **`scaling_benchmark.md`**: replaced the runner stub with real `bench.py` usage; method now points at
+  the Grafana dashboard (`pipeline_queue_depth` draining, `rate(pipeline_segments{status="DONE"})`) for
+  a live view while the benchmark runs.
+
+**Key decisions:** a Python driver (not `run.sh`) — cross-platform on the Windows host and reuses the
+existing stdlib handshake; reuses the now-built `GET /jobs/{id}` for the drain poll. `*.mp4/*.mov/*.ts`
+are already git-ignored, so a `samples/` clip set won't be committed.
+
+**Verified:** `python -m py_compile scripts/bench.py` OK. No Java changed → `./mvnw verify` unaffected
+(still 72 tests). The actual benchmark **run** needs Docker + real clips and is the owner's to execute;
+the Results table stays to-be-filled.
+
+**Open follow-ups:** run the benchmark, paste medians + a chart into the README Results section.
+
+---
+
 ## Backlog — Observability & operability (later tasks, requested)
 
 **Monitoring dashboard / service status**

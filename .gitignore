@@ -38,6 +38,10 @@ tmp/
 *.m3u8
 !docs/**/*.mp4
 
+# ---- Python (scripts/: smoke.py, bench.py) ----
+__pycache__/
+*.pyc
+
 # ---- Node (hls.js demo frontend, if added) ----
 node_modules/
 dist/
