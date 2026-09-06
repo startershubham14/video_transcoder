@@ -621,6 +621,30 @@ stack serves `pipeline_*` metrics. A live smoke/benchmark run is still pending (
 
 ---
 
+## 2026-09-06 — Fix the fan-in lost-claim edge in the reconciliation sweep
+
+**Branch:** `claude/dev-branch-docs-review-6ded45` (published to `dev`)
+
+**Goal:** Close the narrow lost-claim edge surfaced by `FanInRaceTest` — a perfectly-simultaneous
+final-segment completion where every worker's `tryClaim` runs before any `markDone` commits can leave
+a rung fully DONE with no claim, hanging the job in `PROCESSING`.
+
+**Fix:** `ReconciliationSweep` now re-drives packaging for stale jobs in **both** `PROCESSING` and
+`CONCATENATING` (was CONCATENATING-only). For each rung that is fully DONE but whose output is missing,
+it runs `tryClaimPackaging` in a transaction (flips `PROCESSING→CONCATENATING`, or re-matches
+`CONCATENATING`) and, on a winning claim (returns 1), re-publishes the `PackageTask`. The all-DONE guard
+still prevents packaging a partial rung. Injected a `TransactionTemplate` for the guarded claim.
+
+**Tests:** `ReconciliationSweepTest` gains `recoversLostClaimForStuckProcessingJob` (PROCESSING job,
+all-DONE rung, missing output → `tryClaimPackaging` → `publishPackage`); the CONCATENATING case now also
+stubs the re-claim. `./mvnw -B verify` green (**74 tests, 0 skipped**).
+
+**Result:** the edge `FanInRaceTest` documented is now recovered by the sweep within
+`RECONCILIATION_STALE_SECONDS`; the design's "at-least-once, idempotent" packaging guarantee holds even
+under the pathological race.
+
+---
+
 ## Backlog — Observability & operability (later tasks, requested)
 
 **Monitoring dashboard / service status**

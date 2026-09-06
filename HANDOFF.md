@@ -87,10 +87,10 @@ Postgres `SELECT status FROM jobs...`. Job → `COMPLETED` when all rungs packag
 - **Scaling demo** (step 9): runner `scripts/bench.py` is built (submits K jobs, times the drain,
   prints a results-table row); **run it** per worker count and paste medians + a chart into the
   README Results section (needs Docker + real clips).
-- **Testcontainers**: `FanInRaceTest` is now real (Postgres via Testcontainers) — no premature claim,
-  completion claims once, redelivery idempotent-safe. `./mvnw verify` = 73 tests, 0 skipped. Noted edge:
-  perfectly-simultaneous final-segment completion could lose the claim (job stuck PROCESSING) — narrow;
-  optional fix is to have `ReconciliationSweep` re-drive all-DONE PROCESSING jobs.
+- **Testcontainers**: `FanInRaceTest` is real (Postgres via Testcontainers) — no premature claim,
+  completion claims once, redelivery idempotent-safe. The lost-claim edge it surfaced is now **fixed**:
+  `ReconciliationSweep` re-drives all-DONE-but-unpackaged rungs for both PROCESSING (re-claims) and
+  CONCATENATING jobs. `./mvnw verify` = **74 tests, 0 skipped**.
 - **Live smoke/benchmark**: still to run (ClamAV was unhealthy this session); use `scripts/bench.py`.
 - README results/diagrams.
 
