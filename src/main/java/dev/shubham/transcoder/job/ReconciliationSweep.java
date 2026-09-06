@@ -1,9 +1,14 @@
 package dev.shubham.transcoder.job;
 
 import dev.shubham.transcoder.config.PipelineProperties;
+import dev.shubham.transcoder.messaging.PackageTask;
 import dev.shubham.transcoder.messaging.PrepareTask;
 import dev.shubham.transcoder.messaging.TaskPublisher;
 import dev.shubham.transcoder.messaging.TranscodeTask;
+import dev.shubham.transcoder.packaging.OutputMode;
+import dev.shubham.transcoder.packaging.Packager;
+import dev.shubham.transcoder.packaging.PackagerFactory;
+import dev.shubham.transcoder.storage.BlobStore;
 import dev.shubham.transcoder.transcode.Segment;
 import dev.shubham.transcoder.transcode.SegmentRepository;
 import dev.shubham.transcoder.transcode.SegmentStatus;
@@ -37,15 +42,21 @@ public class ReconciliationSweep {
     private final SegmentRepository segmentRepository;
     private final TaskPublisher taskPublisher;
     private final PipelineProperties pipelineProperties;
+    private final PackagerFactory packagerFactory;
+    private final BlobStore blobStore;
 
     public ReconciliationSweep(JobRepository jobRepository,
                                SegmentRepository segmentRepository,
                                TaskPublisher taskPublisher,
-                               PipelineProperties pipelineProperties) {
+                               PipelineProperties pipelineProperties,
+                               PackagerFactory packagerFactory,
+                               BlobStore blobStore) {
         this.jobRepository = jobRepository;
         this.segmentRepository = segmentRepository;
         this.taskPublisher = taskPublisher;
         this.pipelineProperties = pipelineProperties;
+        this.packagerFactory = packagerFactory;
+        this.blobStore = blobStore;
     }
 
     @Scheduled(fixedDelayString = "${pipeline.reconciliation-interval-ms:30000}")
@@ -67,6 +78,24 @@ public class ReconciliationSweep {
                     segment.getId(), segment.getJobId());
             taskPublisher.publishTranscode(
                     new TranscodeTask(segment.getJobId(), segment.getId(), segment.getRung()));
+        }
+
+        // Stuck CONCATENATING: a PackageTask was lost. Re-publish for any rung whose segments are all
+        // DONE but whose packaged output is missing (the all-DONE guard avoids packaging a partial rung).
+        List<Job> staleConcatenating = jobRepository.findByStatusAndUpdatedAtBefore(JobStatus.CONCATENATING, cutoff);
+        if (!staleConcatenating.isEmpty()) {
+            Packager packager = packagerFactory.forMode(OutputMode.fromConfig(pipelineProperties.outputMode()));
+            for (Job job : staleConcatenating) {
+                for (String rung : segmentRepository.findDistinctRungs(job.getId())) {
+                    List<Segment> segments = segmentRepository.findByJobIdAndRung(job.getId(), rung);
+                    boolean allDone = !segments.isEmpty()
+                            && segments.stream().allMatch(s -> s.getStatus() == SegmentStatus.DONE);
+                    if (allDone && !blobStore.exists(packager.outputKey(job.getId(), rung))) {
+                        log.warn("[reconcile] re-publishing package for stuck job {} rung {}", job.getId(), rung);
+                        taskPublisher.publishPackage(new PackageTask(job.getId(), rung));
+                    }
+                }
+            }
         }
     }
 }

@@ -460,6 +460,42 @@ is a Docker step for the owner (`curl -N /jobs/{id}/events`).
 
 ---
 
+## 2026-09-05 — Reliability follow-ups (give-up job-failing, RETRY_WAIT, package reconciliation)
+
+**Branch:** `claude/dev-branch-docs-review-6ded45` (published to `dev`)
+
+**Goal:** Close the three gaps the reliability core (step 8) deferred.
+
+**Done:**
+1. **Prepare/package give-up → FAILED.** `PrepareHandler.failOnGiveUp` / `PackageHandler.failOnGiveUp`
+   (guarded `JobRepository.failJob` + `JobEventPublisher.publish`), wired via `onGiveUp` overrides in
+   `PrepareListener` / `PackageListener` — mirrors the transcode path. An infra failure that exhausts
+   retries no longer leaves the job hung in PREPARING/CONCATENATING.
+2. **Segment `RETRY_WAIT`.** New `AbstractStageWorker.onRetry(task, attempt)` no-op hook (fired when a
+   transient failure is scheduled for retry); `TranscodeListener` overrides →
+   `TranscodeHandler.markSegmentRetryWait` → `SegmentRepository.markRetryWait` (PROCESSING→RETRY_WAIT,
+   `attempts++`). `markProcessing` guard widened to `QUEUED | RETRY_WAIT` so the redelivery moves it
+   back to PROCESSING.
+3. **Package-stage reconciliation.** `ReconciliationSweep` now also re-drives stale `CONCATENATING`
+   jobs: for each rung whose segments are all DONE but whose output is missing
+   (`blobStore.exists(packager.outputKey(...))`), re-publish `PackageTask`. New sweep deps:
+   `PackagerFactory`, `BlobStore`.
+
+**Key decision:** the redelivery collapses the documented `RETRY_WAIT → QUEUED → PROCESSING` into
+`RETRY_WAIT → PROCESSING` — the `QUEUED` hop would be instantaneous and carries no signal. CLAUDE.md's
+segment-state line updated to match (stale docs = bug). The message header remains the authoritative
+retry counter; `segments.status`/`attempts` are observability.
+
+**Tests:** `ErrorRoutingTest` extended (onRetry fires with the attempt number on transient-under-cap,
+not on success/permanent/exhausted); `TranscodeHandlerTest` (markSegmentRetryWait, failSegment);
+`ReconciliationSweepTest` extended (package re-drive: missing-output all-DONE rung re-published;
+not-all-DONE / already-packaged skipped). `./mvnw -B verify` green (**71 tests**; only `FanInRaceTest`
+`@Disabled`).
+
+**Open follow-ups:** DLQ drain/inspection tooling.
+
+---
+
 ## Backlog — Observability & operability (later tasks, requested)
 
 **Monitoring dashboard / service status**

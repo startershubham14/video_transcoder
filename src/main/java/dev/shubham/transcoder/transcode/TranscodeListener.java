@@ -59,4 +59,10 @@ public class TranscodeListener extends AbstractStageWorker<TranscodeTask> {
     protected void onGiveUp(TranscodeTask task, Throwable cause) {
         transcodeHandler.failSegment(task, cause.getMessage());
     }
+
+    /** A transient failure is being retried — reflect it in the segment row (RETRY_WAIT). */
+    @Override
+    protected void onRetry(TranscodeTask task, int attempt) {
+        transcodeHandler.markSegmentRetryWait(task.segmentId());
+    }
 }

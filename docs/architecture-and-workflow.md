@@ -193,11 +193,15 @@ stateDiagram-v2
     PROCESSING --> DONE: encode ok, ack
     PROCESSING --> QUEUED: crash / nack -> redelivered
     PROCESSING --> RETRY_WAIT: transient error -> delay queue
-    RETRY_WAIT --> QUEUED: after backoff TTL
+    RETRY_WAIT --> PROCESSING: redelivered after backoff TTL
     PROCESSING --> FAILED: permanent error OR N exhausted -> DLQ
     DONE --> [*]
     FAILED --> [*]
 ```
+
+> Implementation note: the redelivered retry moves `RETRY_WAIT → PROCESSING` directly (the momentary
+> `QUEUED` hop is collapsed). The authoritative retry count is the RabbitMQ message header; the
+> `segments.status`/`attempts` columns are observability.
 
 ---
 

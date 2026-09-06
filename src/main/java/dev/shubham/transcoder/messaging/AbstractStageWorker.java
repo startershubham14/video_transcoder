@@ -70,6 +70,11 @@ public abstract class AbstractStageWorker<T> {
             log.warn("[{}] transient failure (attempt {}/{}), retrying in {}ms: {}",
                     stageName(), nextAttempt, maxAttempts, ttlMs, e.toString());
             try {
+                onRetry(task, nextAttempt);
+            } catch (Exception hookFailure) {
+                log.error("[{}] onRetry hook failed", stageName(), hookFailure);
+            }
+            try {
                 retryPublisher.scheduleRetry(message, originQueue, nextAttempt, ttlMs);
                 ack(channel, deliveryTag); // original removed; the delayed copy carries the work
             } catch (Exception republishFailure) {
@@ -131,6 +136,16 @@ public abstract class AbstractStageWorker<T> {
      * segment FAILED and fails the job so it doesn't hang.
      */
     protected void onGiveUp(T task, Throwable cause) {
+        // no-op by default
+    }
+
+    /**
+     * Hook invoked when a transient failure is scheduled for retry (before it is parked in the
+     * retry-delay queue). Default no-op; transcode overrides it to mark the segment RETRY_WAIT.
+     *
+     * @param attempt the 1-based attempt number this retry represents
+     */
+    protected void onRetry(T task, int attempt) {
         // no-op by default
     }
 }

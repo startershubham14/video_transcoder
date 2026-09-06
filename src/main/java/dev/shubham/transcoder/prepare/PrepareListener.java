@@ -50,4 +50,10 @@ public class PrepareListener extends AbstractStageWorker<PrepareTask> {
     protected String stageName() {
         return "prepare";
     }
+
+    /** An infra prepare failure exhausted its retries — fail the job so it doesn't hang PREPARING. */
+    @Override
+    protected void onGiveUp(PrepareTask task, Throwable cause) {
+        prepareHandler.failOnGiveUp(task.jobId(), cause.getMessage());
+    }
 }

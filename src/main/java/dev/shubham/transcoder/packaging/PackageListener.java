@@ -49,4 +49,10 @@ public class PackageListener extends AbstractStageWorker<PackageTask> {
     protected String stageName() {
         return "package";
     }
+
+    /** A packaging failure exhausted its retries — fail the job so it doesn't hang CONCATENATING. */
+    @Override
+    protected void onGiveUp(PackageTask task, Throwable cause) {
+        packageHandler.failOnGiveUp(task.jobId(), cause.getMessage());
+    }
 }

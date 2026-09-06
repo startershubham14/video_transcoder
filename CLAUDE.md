@@ -126,7 +126,10 @@ new jobs (head-of-line-blocking prevention).
 
 - Job: `AWAITING_UPLOAD → PREPARING → PROCESSING → CONCATENATING → COMPLETED` (or `FAILED`,
   `EXPIRED`).
-- Segment: `QUEUED → PROCESSING → DONE` (or `RETRY_WAIT`, `FAILED`).
+- Segment: `QUEUED → PROCESSING → DONE` (or `RETRY_WAIT`, `FAILED`). A transient failure parks the
+  segment in `RETRY_WAIT` (attempt counter bumped); its redelivery moves it straight back to
+  `PROCESSING` (the momentary `QUEUED` hop is collapsed). The authoritative retry count is the
+  message header, not the row — `status`/`attempts` are observability.
 - Every state transition is a DB write. The API computes progress by reading these.
 
 ---

@@ -95,6 +95,17 @@ public class PackageHandler {
         completeIfAllRungsPackaged(jobId, packager);
     }
 
+    /**
+     * Terminal give-up for a packaging failure that exhausted its retries (invoked by
+     * {@link PackageListener#onGiveUp}): fail the job so it doesn't hang in CONCATENATING. Guarded
+     * + idempotent via {@link JobRepository#failJob}.
+     */
+    public void failOnGiveUp(UUID jobId, String reason) {
+        String detail = reason == null || reason.isBlank() ? "packaging failed" : reason;
+        transactionTemplate.executeWithoutResult(status -> jobRepository.failJob(jobId, detail));
+        jobEventPublisher.publish(jobId);
+    }
+
     /** Job-completion fan-in: when every rung's output exists, flip CONCATENATING → COMPLETED once. */
     private void completeIfAllRungsPackaged(UUID jobId, Packager packager) {
         List<String> rungs = segmentRepository.findDistinctRungs(jobId);

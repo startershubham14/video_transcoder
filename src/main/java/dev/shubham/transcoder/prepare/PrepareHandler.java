@@ -184,6 +184,18 @@ public class PrepareHandler {
         jobEventPublisher.publish(jobId); // notify SSE watchers: job → FAILED
     }
 
+    /**
+     * Terminal give-up for an <em>infrastructure</em> prepare failure that exhausted its retries
+     * (invoked by {@link PrepareListener#onGiveUp}). Input-rejected failures are already handled in
+     * {@link #prepare}; this stops an infra failure from leaving the job hung in PREPARING. Guarded
+     * + idempotent via {@link JobRepository#failJob}.
+     */
+    public void failOnGiveUp(UUID jobId, String reason) {
+        String detail = reason == null || reason.isBlank() ? "prepare failed" : reason;
+        transactionTemplate.executeWithoutResult(status -> jobRepository.failJob(jobId, detail));
+        jobEventPublisher.publish(jobId);
+    }
+
     /** Authoritative post-ffprobe limit gate. Package-visible for unit testing. */
     static void enforceLimits(ProbeResult probe, int maxDurationSeconds, long maxSizeBytes) {
         if (probe.durationSeconds().compareTo(BigDecimal.valueOf(maxDurationSeconds)) > 0) {
