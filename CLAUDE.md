@@ -297,9 +297,13 @@ and refactor to the pattern when the second case actually arrives (YAGNI).
   segment or cleanly nack/requeue it — never silently drop in-flight work. Enable Spring
   graceful shutdown; stop the RabbitMQ listener container before the DB/S3 clients close.
   This is part of the idempotency/reliability story (Golden rule 4).
-- **Metrics.** Spring Boot Actuator + Micrometer expose queue depth, jobs/min, per-stage
-  latency, and success/failure counts. This doubles as how the scaling benchmark is measured.
-  Optional Prometheus + Grafana for a dashboard ("watch the queue drain as workers scale").
+- **Metrics.** Spring Boot Actuator + Micrometer expose Prometheus metrics at `/actuator/prometheus`.
+  The pipeline gauges — `pipeline_jobs{status}`, `pipeline_segments{status}`,
+  `pipeline_queue_depth{queue}` — are computed **api-side** from Postgres + RabbitMQ
+  (`config/PipelineMetrics`), so workers stay headless and there's no hot-path cost (suppliers run only
+  on scrape). Prometheus scrapes the api only; Grafana provides the "watch the queue drain" dashboard;
+  throughput is derived with `rate()`. Per-stage worker timers would require scraping the workers
+  (deferred). This doubles as how the scaling benchmark is measured.
 - **API docs.** `springdoc-openapi` auto-generates Swagger UI from the controllers — keep
   endpoints self-documenting; don't hand-maintain API docs.
 - **CI.** `.github/workflows/ci.yml` runs `./mvnw verify` (unit + Testcontainers) on every PR.

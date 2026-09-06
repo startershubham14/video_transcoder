@@ -28,7 +28,12 @@ what's left so a new session can continue on `dev` without prior context.
   completion) and closes on a terminal state. Event-driven: workers publish a `jobId` poke to the
   `job.events` **fanout** after each commit; each api instance consumes on its own auto-delete queue and
   pushes a Postgres-derived snapshot (`OutputDeliveryService`). Knob `SSE_TIMEOUT_MINUTES` (default 30).
-- `./mvnw -B verify` is green (67 tests; only `FanInRaceTest` `@Disabled` for Testcontainers). CI
+- **Observability (metrics + dashboard) is DONE:** `PipelineMetrics` (`@Profile("api")`) exposes
+  `pipeline_jobs`/`pipeline_segments`/`pipeline_queue_depth` at `/actuator/prometheus`, computed api-side
+  from Postgres + RabbitMQ (workers stay headless — metrics are api-only by design). docker-compose adds
+  `prometheus` (`:9090`, scrapes only the api) + `grafana` (`:3000`, anonymous) with a provisioned
+  "watch the queue drain" dashboard. Throughput is Grafana `rate()`.
+- `./mvnw -B verify` is green (72 tests; only `FanInRaceTest` `@Disabled` for Testcontainers). CI
   (`.github/workflows/ci.yml`) runs `./mvnw verify` on PRs to `main`.
 
 ## ⚠️ Local-only files the new session needs
@@ -77,8 +82,8 @@ Postgres `SELECT status FROM jobs...`. Job → `COMPLETED` when all rungs packag
 - **Reliability** (core + follow-ups done): all stages fail the job on give-up; segments show
   `RETRY_WAIT`/`attempts` on retry; the sweep re-drives stuck `PREPARING`/`QUEUED`/`CONCATENATING`.
   Remaining nicety: DLQ drain/inspection tooling.
-- **Observability** (requested): Actuator + Micrometer + Prometheus + Grafana dashboard (services
-  health, queue depth, throughput); structured logging with MDC (jobId/segmentId/rung).
+- **Observability follow-ups** (metrics + dashboard done): per-stage worker timers/latency (needs
+  worker scraping); structured MDC logging (jobId/segmentId/rung); alerting.
 - **Testcontainers** integration tests (fan-in race, idempotency, error routing — placeholders
   `@Disabled` today); **scaling benchmark** (`scaling_benchmark.md`); README results/diagrams.
 

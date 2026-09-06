@@ -18,6 +18,9 @@ public interface JobRepository extends JpaRepository<Job, UUID> {
     /** In-flight jobs (anything past AWAITING_UPLOAD and not terminal) for the cap. */
     long countByStatusIn(List<JobStatus> statuses);
 
+    /** Count of jobs in a status — backs the {@code pipeline.jobs} metric gauge. */
+    long countByStatus(JobStatus status);
+
     /** Jobs still awaiting upload whose deadline has passed — reaper candidates. */
     List<Job> findByStatusAndUploadDeadlineBefore(JobStatus status, Instant cutoff);
 

@@ -496,6 +496,44 @@ not-all-DONE / already-packaged skipped). `./mvnw -B verify` green (**71 tests**
 
 ---
 
+## 2026-09-06 — Observability: api-side metrics + Grafana dashboard (lean)
+
+**Branch:** `claude/dev-branch-docs-review-6ded45` (published to `dev`)
+
+**Goal:** Expose the pipeline metrics the scaling demo needs ("watch the queue drain") with minimal
+footprint — after reconsidering the original full plan on performance/complexity grounds.
+
+**Scope decision (with owner):** rejected per-worker scraping (a servlet server on every headless
+worker + per-replica discovery) as too much footprint/complexity for a local demo. Chosen: **all
+metrics computed on the api** from Postgres + RabbitMQ, so workers are untouched and there's no app
+hot-path cost — gauge suppliers run only when Prometheus scrapes (~15s), on the api alone. No worker
+timers, no MDC (deferred).
+
+**Done:**
+- **`PipelineMetrics`** (`config/`, `@Profile("api")`) registers Micrometer gauges on the
+  `MeterRegistry`: `pipeline.jobs{status}` (`JobRepository.countByStatus`), `pipeline.segments{status}`
+  (`SegmentRepository.countByStatus`), `pipeline.queue.depth{queue}` (`RabbitAdmin.getQueueInfo`,
+  null/exception-safe → 0) for the five queues. Two derived repo counts added.
+- `application.yml`: `management.metrics.tags.application=video-transcoder`. `/actuator/prometheus`
+  was already exposed.
+- **docker-compose**: `prometheus` (`:9090`, scrapes only `api:8080/actuator/prometheus`) + `grafana`
+  (`:3000`, anonymous viewer, provisioned datasource + dashboard). Config under `docker/prometheus/`
+  and `docker/grafana/`. Dashboard `pipeline.json`: transcode queue depth, all queue depths,
+  jobs-by-status, segments-done rate (`rate(pipeline_segments{status="DONE"}[1m])`).
+
+**Key decisions:** gauges sourced from the DB/broker (rule 2) keep a single scrape target and directly
+power the queue-drain/throughput story; throughput is `rate()` in Grafana rather than a worker counter.
+
+**Verified:** `./mvnw -B verify` green (**72 tests**; only `FanInRaceTest` `@Disabled`).
+`PipelineMetricsTest` asserts the gauges against mocked repos/RabbitAdmin (incl. missing-queue → 0).
+The Prometheus/Grafana stack is docker-compose config (not runnable in the agent shell) — dashboard
+verified by the owner in Docker.
+
+**Open follow-ups:** per-stage worker timers/latency (needs worker scraping); MDC logging; alerting;
+`scaling_benchmark.md`.
+
+---
+
 ## Backlog — Observability & operability (later tasks, requested)
 
 **Monitoring dashboard / service status**

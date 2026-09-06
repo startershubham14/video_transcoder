@@ -25,6 +25,9 @@ public interface SegmentRepository extends JpaRepository<Segment, UUID> {
     /** Segments in a given status for a job, e.g. DONE (progress numerator). */
     long countByJobIdAndStatus(UUID jobId, SegmentStatus status);
 
+    /** Count of segments in a status across all jobs — backs the {@code pipeline.segments} metric. */
+    long countByStatus(SegmentStatus status);
+
     /** Segments in a status untouched since {@code cutoff} — reconciliation-sweep candidates. */
     List<Segment> findByStatusAndUpdatedAtBefore(SegmentStatus status, Instant cutoff);
 
