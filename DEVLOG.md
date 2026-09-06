@@ -587,6 +587,40 @@ lightweight context/smoke check for DI wiring in future.
 
 ---
 
+## 2026-09-06 — Testcontainers fan-in tests (Docker was reachable this session)
+
+**Branch:** `claude/dev-branch-docs-review-6ded45` (published to `dev`)
+
+**Goal:** Turn the `@Disabled` `FanInRaceTest` placeholder into real Testcontainers tests of the
+per-rung fan-in (Golden rule 5), now that the Docker daemon was reachable.
+
+**Done:**
+- **`FanInRaceTest`** — `@DataJpaTest` + `@AutoConfigureTestDatabase(replace=NONE)` +
+  `@ImportAutoConfiguration(FlywayAutoConfiguration)` + a Testcontainers `postgres:16-alpine` wired via
+  `@DynamicPropertySource` (no `spring-boot-testcontainers` dep needed). Flyway applies V1+V2; Hibernate
+  validates. `@Transactional(NOT_SUPPORTED)` so setup + worker threads commit independently. Three tests,
+  all green against real Postgres:
+  1. the claim does **not** fire while a rung segment is unfinished, and completing the final segment
+     (markDone+tryClaim in one tx, as `TranscodeHandler` does) claims **exactly once** → CONCATENATING;
+  2. a redelivered `markDone` is idempotent (0 rows, stable key, no duplicate rows);
+  3. a concurrent redelivery storm of the final segment stays consistent (≥1 claim, job CONCATENATING,
+     no duplicate rows).
+- `./mvnw -B verify` now **73 tests, 0 skipped** (was 72 with 2 `@Disabled`).
+
+**Finding (noted, not fixed):** the fan-in relies on the *last committer* observing the whole rung
+DONE. A first, unrealistically-simultaneous test (release N workers with zero work between their
+`markDone` and `tryClaim`, before any commit) produced **0 claims** — a narrow edge where perfectly
+concurrent completion of the final segment(s) could **lose** the packaging trigger, hanging the job in
+PROCESSING. In production, encodes finish staggered over seconds so this is effectively unreachable, and
+a redelivered transcode task re-attempts the claim. **Follow-up option:** extend `ReconciliationSweep`
+to also re-drive PROCESSING jobs whose every segment is DONE (re-attempt the claim) to fully close it.
+The committed tests assert the deterministic, faithful guarantees rather than this timing artifact.
+
+**Also this session:** fixed the api-boot `RabbitAdmin` bug (see prior entry) and verified the running
+stack serves `pipeline_*` metrics. A live smoke/benchmark run is still pending (ClamAV was unhealthy).
+
+---
+
 ## Backlog — Observability & operability (later tasks, requested)
 
 **Monitoring dashboard / service status**
