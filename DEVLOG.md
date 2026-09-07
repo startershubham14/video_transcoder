@@ -739,6 +739,21 @@ Also confirmed the MDC log pattern is active (every worker line shows `[job= seg
 
 ---
 
+## 2026-09-07 — Swagger / OpenAPI (Operations requirement)
+
+**Branch:** `claude/dev-branch-docs-review-6ded45` (published to `dev`)
+
+**Done:** added `springdoc-openapi-starter-webmvc-ui` (2.6.0) so the controllers auto-generate the
+OpenAPI spec + Swagger UI (CLAUDE.md Operations: "don't hand-maintain API docs"). `OpenApiConfig`
+(`@Profile("api")`) titles the document; springdoc's web autoconfig only activates on the api (workers
+are headless).
+
+**Verified live:** rebuilt the api — `GET /v3/api-docs` returns the titled spec with all four endpoints
+discovered (`/uploads`, `/jobs/{id}`, `/jobs/{id}/complete`, `/jobs/{id}/events`); `/swagger-ui.html`
+→ HTTP 200. README getting-started points at it. `./mvnw -B verify` green (75 tests).
+
+---
+
 ## Backlog — Observability & operability (later tasks, requested)
 
 **Monitoring dashboard / service status**

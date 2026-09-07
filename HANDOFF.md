@@ -85,6 +85,8 @@ Postgres `SELECT status FROM jobs...`. Job → `COMPLETED` when all rungs packag
 - **Reliability** (core + follow-ups done): all stages fail the job on give-up; segments show
   `RETRY_WAIT`/`attempts` on retry; the sweep re-drives stuck `PREPARING`/`QUEUED`/`CONCATENATING`.
   Remaining nicety: DLQ drain/inspection tooling.
+- **Swagger/OpenAPI** live: `springdoc-openapi` serves `/swagger-ui.html` + `/v3/api-docs` on the api
+  (all 4 endpoints auto-discovered); `OpenApiConfig` titles it (`@Profile("api")`).
 - **Graceful shutdown** is configured + live-verified: `server.shutdown=graceful` +
   `listener.simple.force-stop=false` + compose `stop_grace_period: 40s`; on SIGTERM the RabbitMQ
   listener drains before the datasource closes (unacked work redelivers to idempotent workers).
