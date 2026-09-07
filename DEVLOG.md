@@ -798,6 +798,33 @@ patterns target the existing `source.mp4` / `segments/` keys precisely).
 
 ---
 
+## 2026-09-07 — Gap fixes: reaper aborts abandoned uploads (#5) + S3 adapter integration test (#1)
+
+**Branch:** `claude/dev-branch-docs-review-6ded45` (published to `dev`)
+
+**#5 — abort abandoned multipart uploads.** Reverses the earlier "don't persist uploadId" decision so
+the reaper can actually clean up (CLAUDE.md Reliability):
+- Migration **V3** adds `jobs.upload_id`; `Job` gains the field + `assignUploadId` + getter;
+  `UploadHandler.createUpload` persists `upload.uploadId()` alongside the source key.
+- `UploadTimeoutReaper` now injects `BlobStore`: after marking a past-deadline job `EXPIRED`, it
+  `abortMultipartUpload(sourceKey, uploadId)` (best-effort, outside the txn; S3 lifecycle stays the
+  backstop). Test `abortsTheDanglingMultipartUpload` added.
+
+**#1 (part) — S3 adapter integration test.** `S3BlobStoreIntegrationTest` runs the real adapter against
+a Testcontainers **MinIO**: upload/download/exists/size, presigned GET fetched over HTTP, the path-style
+public URL, a full presigned **multipart round-trip** (initiate → HTTP PUT part → complete), and abort.
+The storage port was previously only exercised by manual runs. Added the `org.testcontainers:minio` dep.
+
+**Verified:** `./mvnw -B verify` green (**83 tests, 0 skipped**). Flyway now applies V1–V3; Hibernate
+`validate` passes with the new column.
+
+**#1 remaining (noted):** the ffmpeg/ffprobe/ClamAV adapters need those binaries/services, which aren't
+on the build host — so they're not yet in an automated test (they *are* exercised by the manual e2e +
+the live scaling benchmark). Options: a media round-trip test guarded on `ffmpeg`/`ffprobe` presence +
+install them in CI; a Testcontainers ClamAV test. Deferred.
+
+---
+
 ## Backlog — Observability & operability (later tasks, requested)
 
 **Monitoring dashboard / service status**

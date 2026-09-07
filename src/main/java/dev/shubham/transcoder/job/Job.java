@@ -61,6 +61,10 @@ public class Job {
     @Column(name = "source_key")
     private String sourceKey;
 
+    /** S3 multipart uploadId — kept so the timeout reaper can abort an abandoned upload. */
+    @Column(name = "upload_id")
+    private String uploadId;
+
     // --- probed metadata (populated in prepare) ---
     @Column(name = "source_width")
     private Integer sourceWidth;
@@ -158,6 +162,11 @@ public class Job {
         this.sourceKey = sourceKey;
     }
 
+    /** Record the S3 multipart uploadId (for the timeout reaper's abort). */
+    public void assignUploadId(String uploadId) {
+        this.uploadId = uploadId;
+    }
+
     /** Record the authoritative metadata from ffprobe. */
     public void recordProbe(int width, int height, BigDecimal durationSeconds,
                             BigDecimal fps, String codec, long sizeBytes) {
@@ -189,6 +198,10 @@ public class Job {
 
     public String getSourceKey() {
         return sourceKey;
+    }
+
+    public String getUploadId() {
+        return uploadId;
     }
 
     public Integer getSourceWidth() {
