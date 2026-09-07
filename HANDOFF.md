@@ -6,6 +6,9 @@ what's left so a new session can continue on `dev` without prior context.
 ## Current state (as of tip)
 - Branch to work on: **`dev`** (published to `origin/dev`). `main` lags behind — promote via a
   **merge-commit** PR (`main ← dev`); **never merge `main` → `dev`** (it has mis-reverted work 3×).
+- **Build order complete (steps 1–10).** Optional extras remain (per-stage worker metric timers,
+  DLQ inspection tooling, a rigorous benchmark). README status/getting-started/layout now reflect the
+  finished system.
 - **Build-order steps 1–6 are DONE and verified end-to-end in Docker** with real videos
   (small clip, 147 MB trailer, larger file → all reached `COMPLETED` with playable MP4s):
   1. compose skeleton · 2. migrations + entities · 3. upload flow (`/uploads`,`/complete`) ·

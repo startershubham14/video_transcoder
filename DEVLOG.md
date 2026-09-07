@@ -690,6 +690,32 @@ plus `segmentId`/`rung` in workers).
 
 ---
 
+## 2026-09-07 — README polish (build-order step 10)
+
+**Branch:** `claude/dev-branch-docs-review-6ded45` (published to `dev`)
+
+**Goal:** Close out the build order; fix stale docs (CLAUDE.md: stale docs = bug).
+
+**Done (README only, no code):**
+- Rewrote the **Status** banner: was "in design / under construction — implementation in progress"
+  (stale); now reflects the functional end-to-end system (upload→prepare→parallel transcode+atomic
+  fan-in→MP4 **and** HLS, retries/DLQ, reconciliation/reaper, polling+SSE, Prometheus/Grafana, scaling
+  demo; `./mvnw verify` green).
+- Replaced the **Getting started** "Coming soon" stub with real steps: prerequisites, `cp .env.example
+  .env`, `docker compose up --build` (with the service ports + ClamAV defs note), `scripts/smoke.py`,
+  status polling/SSE, Grafana/RabbitMQ/MinIO UIs, HLS + `player.html`, scaling demo, `./mvnw verify`,
+  and the `API_PORT` override. Noted the source must be taller than 360p to yield ladder rungs.
+- **Repository layout** renamed from "Planned" and updated to the real tree (adds `scripts/`, `docker/`,
+  `src/main/resources/`, V1/V2 migrations, the full compose service list).
+- **Scaling** section now links the recorded results + interpretation instead of "to be filled in".
+
+**Build order complete (steps 1–10).** Remaining are optional extras: per-stage worker metric timers
+(needs worker scraping), DLQ inspection tooling, and a rigorous benchmark (heavier clip, 3× medians,
+committed chart). Note: the architecture diagram still shows an nginx front that isn't in the local
+compose (documented-future component) — left as-is.
+
+---
+
 ## Backlog — Observability & operability (later tasks, requested)
 
 **Monitoring dashboard / service status**
