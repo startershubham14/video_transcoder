@@ -85,6 +85,9 @@ Postgres `SELECT status FROM jobs...`. Job → `COMPLETED` when all rungs packag
 - **Reliability** (core + follow-ups done): all stages fail the job on give-up; segments show
   `RETRY_WAIT`/`attempts` on retry; the sweep re-drives stuck `PREPARING`/`QUEUED`/`CONCATENATING`.
   Remaining nicety: DLQ drain/inspection tooling.
+- **Graceful shutdown** is configured + live-verified: `server.shutdown=graceful` +
+  `listener.simple.force-stop=false` + compose `stop_grace_period: 40s`; on SIGTERM the RabbitMQ
+  listener drains before the datasource closes (unacked work redelivers to idempotent workers).
 - **Observability follow-ups** (metrics + dashboard + MDC logging done): per-stage worker timers/latency
   (needs worker scraping); alerting.
 - **Scaling demo** (step 9): runner `scripts/bench.py` is built (submits K jobs, times the drain,

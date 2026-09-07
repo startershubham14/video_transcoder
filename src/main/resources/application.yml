@@ -1,6 +1,15 @@
 # Base configuration. Secrets and environment-specific values come from the environment
 # (see .env.example); nothing sensitive is committed here.
+
+# Graceful shutdown (Golden rule 4 / Operations): on SIGTERM the web server drains in-flight
+# requests (incl. SSE) and the RabbitMQ listener containers stop taking new deliveries and let
+# the current handler finish. Spring stops the listeners before the datasource/S3 clients close;
+# anything still un-acked when the window elapses is redelivered by the broker (idempotent workers).
+server:
+  shutdown: graceful
 spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
   application:
     name: video-transcoder
   datasource:
@@ -23,6 +32,7 @@ spring:
       simple:
         prefetch: ${PREFETCH:1}          # spread backlog evenly, no hoarding
         acknowledge-mode: manual         # ack only after work + state commit
+        force-stop: false                # on shutdown, finish the in-flight message before stopping
 
 # Observability: expose health/info + the Prometheus scrape endpoint (metrics dashboards
 # are a later task; this is the base surface + a target for compose healthchecks).

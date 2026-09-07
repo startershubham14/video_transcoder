@@ -716,6 +716,29 @@ compose (documented-future component) — left as-is.
 
 ---
 
+## 2026-09-07 — Graceful shutdown (Operations requirement)
+
+**Branch:** `claude/dev-branch-docs-review-6ded45` (published to `dev`)
+
+**Goal:** On SIGTERM (scale-down / redeploy) a worker must finish its current task or cleanly
+redeliver it — never silently drop in-flight work (CLAUDE.md Operations + Golden rule 4). Nothing
+configured this before.
+
+**Done (config only — manual-ack + idempotency already prevent lost work; this makes shutdown drain
+cleanly instead of cutting mid-ack):**
+- `application.yml`: `server.shutdown: graceful`, `spring.lifecycle.timeout-per-shutdown-phase: 30s`,
+  and `spring.rabbitmq.listener.simple.force-stop: false` (finish the in-flight message before stopping).
+- `docker-compose.yml`: `stop_grace_period: 40s` on api / worker / transcode-worker so Docker's
+  SIGTERM→SIGKILL window covers the drain.
+
+**Verified live (Docker up):** rebuilt the image, then `docker stop -t 40` a transcode worker — logs:
+`SimpleMessageListenerContainer: Waiting for workers to finish.` → `Successfully waited for workers to
+finish.`, and only *then* `HikariDataSource: Shutdown initiated/completed`. Confirms the required
+ordering (RabbitMQ listener stops before the DB/S3 clients close). `./mvnw -B verify` green (75 tests).
+Also confirmed the MDC log pattern is active (every worker line shows `[job= seg= rung=]`).
+
+---
+
 ## Backlog — Observability & operability (later tasks, requested)
 
 **Monitoring dashboard / service status**

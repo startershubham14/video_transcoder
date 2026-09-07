@@ -120,6 +120,8 @@ services:
       <<: *app-environment
       SPRING_PROFILES_ACTIVE: api
     depends_on: *app-depends
+    # Give Spring's graceful shutdown time to drain before Docker sends SIGKILL.
+    stop_grace_period: 40s
     ports:
       # Host port is overridable to avoid a conflict: API_PORT=8081 docker compose up
       - "${API_PORT:-8080}:8080"
@@ -131,6 +133,8 @@ services:
       <<: *app-environment
       SPRING_PROFILES_ACTIVE: worker
     depends_on: *app-depends
+    # Finish the in-flight prepare/package task (or let it redeliver) before SIGKILL.
+    stop_grace_period: 40s
 
   transcode-worker:
     build: .
@@ -139,6 +143,8 @@ services:
       <<: *app-environment
       SPRING_PROFILES_ACTIVE: transcode
     depends_on: *app-depends
+    # Scale-down/redeploy sends SIGTERM; let the current encode finish or redeliver, not vanish.
+    stop_grace_period: 40s
 
   # Scrapes the api's /actuator/prometheus (metrics are computed api-side from Postgres + RabbitMQ,
   # so only the api is a target — workers stay headless).
