@@ -1,7 +1,10 @@
 # Distributed Video Transcoding Pipeline
 
-> **Status:**  In design / under construction — architecture is fully specified
-> (see [`docs/`](docs/)); implementation in progress.
+> **Status:** Functional end-to-end locally. Upload → prepare (probe/scan/split/fan-out) →
+> parallel transcode with an atomic per-rung fan-in → **MP4 and HLS** packaging, plus bounded
+> retries + DLQ, reconciliation/timeout sweeps, live status (polling + SSE), Prometheus/Grafana
+> metrics, and a horizontal scaling demo. Brought up with `docker compose up`; `./mvnw verify` is
+> green (unit + Testcontainers integration). See [`docs/`](docs/) for the design rationale.
 
 A distributed video-processing service that ingests a video, splits it into
 keyframe-aligned segments, transcodes those segments **in parallel** across a pool of
@@ -180,7 +183,10 @@ segments-completed rate climb.
 The core claim — transcode throughput scales with worker count — is measured by
 [`scaling_benchmark.md`](scaling_benchmark.md) using `scripts/bench.py`: bring the transcode tier up
 at a given size (`docker compose up -d --scale transcode-worker=W`), submit K jobs, and time the
-drain. Watch it live on the Grafana dashboard. (Results table: to be filled in after a run.)
+drain. Watch it live on the Grafana dashboard. A first run (single-run, small clip) is recorded in
+[`scaling_benchmark.md`](scaling_benchmark.md): throughput climbs sharply 1→2 workers, then regresses
+at 4 as FFmpeg oversubscribes a laptop's cores — the expected plateau. Re-run with a heavier clip and
+3× medians for a rigorous curve.
 
 ## Documentation
 
@@ -190,23 +196,50 @@ drain. Watch it live on the Grafana dashboard. (Results table: to be filled in a
   full diagrams, database schema + the atomic fan-in query, queue reliability, input
   limits, and the build order.
 
-## Planned repository layout
+## Repository layout
 
 ```
 .
 ├── docs/                     # design notes + architecture
-├── src/main/java/...         # Spring Boot API + workers (same codebase, profiles)
-├── db/migrations/            # schema migrations (Flyway)
-├── .github/workflows/ci.yml  # CI: ./mvnw verify on every PR
-├── docker-compose.yml        # api, worker, rabbitmq, postgres, clamav, (minio)
+├── src/main/java/...         # Spring Boot API + workers (same codebase, Spring profiles)
+├── src/main/resources/       # application*.yml (per-profile), static/player.html (hls.js)
+├── db/migrations/            # schema migrations (Flyway: V1 init, V2 status→varchar)
+├── scripts/                  # smoke.py (drive one job), bench.py (scaling benchmark)
+├── docker/                   # clamav conf, prometheus config, grafana provisioning + dashboard
+├── .github/workflows/ci.yml  # CI: ./mvnw verify on every PR to main
+├── docker-compose.yml        # api, worker, transcode-worker, rabbitmq, postgres, minio, clamav, prometheus, grafana
 ├── .env.example              # config template (no secrets)
-└── README.md
+└── scaling_benchmark.md
 ```
 
 ## Getting started
 
-> Coming soon — `docker-compose up` will bring up the full stack locally.
-> Configuration is env-driven; copy `.env.example` to `.env` and fill in values.
+**Prerequisites:** Docker + Docker Compose. (For local build/tests: JDK 21 — the repo ships the
+Maven wrapper `./mvnw`.)
+
+```bash
+cp .env.example .env                 # defaults target the bundled MinIO; edit for real AWS
+docker compose up --build            # api :8080, rabbitmq :15672, minio :9001, prometheus :9090, grafana :3000
+                                     # (first boot downloads ClamAV virus defs, ~1–2 min)
+```
+
+Then drive a job (use a source **taller than 360p** so the ladder yields rungs — e.g. 720p/1080p):
+
+```bash
+python scripts/smoke.py path/to/video.mp4     # POST /uploads → PUT presigned parts → POST /complete
+```
+
+Track it: poll `GET http://localhost:8080/jobs/{id}` (status, progress, and presigned download URLs
+when `COMPLETED`), or stream `curl -N http://localhost:8080/jobs/{id}/events`. Watch the pipeline in
+Grafana (`http://localhost:3000`) and the queues in the RabbitMQ UI (`http://localhost:15672`,
+guest/guest). Outputs land in MinIO (`http://localhost:9001`, minioadmin/minioadmin).
+
+- **HLS + playback:** set `OUTPUT_MODE=hls` (in `.env`), re-run a job, then open
+  `http://localhost:8080/player.html?src=<master .m3u8 url>`.
+- **Scaling demo:** `docker compose up -d --scale transcode-worker=4`, then `python scripts/bench.py …`
+  (see [`scaling_benchmark.md`](scaling_benchmark.md)).
+- **Tests:** `./mvnw verify` (unit + Testcontainers integration — needs a Docker daemon).
+- If host port 8080 is taken: `API_PORT=8081 docker compose up`.
 
 ## Security note
 
