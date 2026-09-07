@@ -80,7 +80,8 @@ public class UploadHandler {
         String sourceKey = job.getId() + "/source.mp4";
         int parts = partCount(sizeBytes, storageProperties.s3().partSizeBytes());
         PresignedMultipartUpload upload = blobStore.initiateMultipartUpload(sourceKey, parts, ttl);
-        job.assignSourceKey(sourceKey); // dirty-checked, flushed on commit
+        job.assignSourceKey(sourceKey);          // dirty-checked, flushed on commit
+        job.assignUploadId(upload.uploadId());   // so the reaper can abort an abandoned upload
 
         List<String> partUrls = upload.partUrls().stream().map(URL::toString).toList();
         return new CreateUploadResponse(job.getId(), upload.uploadId(), partUrls, ttl.toSeconds());

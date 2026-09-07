@@ -1,0 +1,22 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "PublicReadOutputs",
+      "Effect": "Allow",
+      "Principal": { "AWS": ["*"] },
+      "Action": ["s3:GetObject"],
+      "Resource": ["arn:aws:s3:::transcoder/*"]
+    },
+    {
+      "Sid": "KeepSourcePrivate",
+      "Effect": "Deny",
+      "Principal": { "AWS": ["*"] },
+      "Action": ["s3:GetObject"],
+      "Resource": [
+        "arn:aws:s3:::transcoder/*/source.mp4",
+        "arn:aws:s3:::transcoder/*/segments/*"
+      ]
+    }
+  ]
+}

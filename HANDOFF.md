@@ -95,6 +95,13 @@ Postgres `SELECT status FROM jobs...`. Job → `COMPLETED` when all rungs packag
 - **Scaling demo** (step 9): runner `scripts/bench.py` is built (submits K jobs, times the drain,
   prints a results-table row); **run it** per worker count and paste medians + a chart into the
   README Results section (needs Docker + real clips).
+- **Reaper aborts abandoned uploads**: `jobs.upload_id` persisted (V3); `UploadTimeoutReaper` aborts the
+  dangling multipart on expiry (best-effort). **S3 adapter** now has a Testcontainers MinIO integration
+  test (`S3BlobStoreIntegrationTest`: upload/download/presign/multipart round-trip). ffmpeg/ClamAV
+  adapters still lack automated tests (no host binaries) — covered by manual e2e for now.
+- **Hardening**: `PipelineProperties` is `@Validated` (bad env fails fast); MinIO public-read is scoped
+  to outputs via `docker/minio/policy.json` (source `.mp4` + `segments/` denied — verified 403 vs 200);
+  the `api` has an Actuator healthcheck and Prometheus waits for it (`service_healthy`).
 - **Real-broker error routing**: `ErrorRoutingIntegrationTest` (Testcontainers RabbitMQ) proves
   permanent→DLQ and transient→retry.delay→origin→DLQ end-to-end against the real topology.
 - **Testcontainers**: `FanInRaceTest` is real (Postgres via Testcontainers) — no premature claim,

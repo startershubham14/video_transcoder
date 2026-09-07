@@ -88,6 +88,10 @@ services:
       MINIO_ROOT_USER: ${AWS_ACCESS_KEY_ID:-minioadmin}
       MINIO_ROOT_PASSWORD: ${AWS_SECRET_ACCESS_KEY:-minioadmin}
       BUCKET: ${AWS_S3_BUCKET:-transcoder}
+    volumes:
+      # Anonymous read scoped to OUTPUTS only (HLS needs siblings public); raw source uploads and
+      # pre-transcode segments stay private. Policy ARNs assume the default bucket name.
+      - ./docker/minio/policy.json:/policy.json:ro
     entrypoint:
       - /bin/sh
       - -c
@@ -96,8 +100,8 @@ services:
           echo 'waiting for minio...'; sleep 2;
         done;
         mc mb --ignore-existing "local/$${BUCKET}";
-        mc anonymous set download "local/$${BUCKET}";
-        echo "bucket $${BUCKET} ready (anonymous download enabled for HLS playback)";
+        mc anonymous set-json /policy.json "local/$${BUCKET}";
+        echo "bucket $${BUCKET} ready (public read scoped to outputs; source stays private)";
 
   clamav:
     image: clamav/clamav:latest
@@ -122,6 +126,13 @@ services:
     depends_on: *app-depends
     # Give Spring's graceful shutdown time to drain before Docker sends SIGKILL.
     stop_grace_period: 40s
+    # Readiness via Actuator (curl is in the runtime image); dependents wait for UP, not just start.
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
     ports:
       # Host port is overridable to avoid a conflict: API_PORT=8081 docker compose up
       - "${API_PORT:-8080}:8080"
@@ -155,7 +166,8 @@ services:
     ports:
       - "9090:9090"
     depends_on:
-      - api
+      api:
+        condition: service_healthy   # wait for the scrape target to be UP, not just started
 
   # Dashboards auto-provisioned from docker/grafana; anonymous read-only access for the demo.
   grafana:
