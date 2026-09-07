@@ -65,4 +65,12 @@ public class TranscodeListener extends AbstractStageWorker<TranscodeTask> {
     protected void onRetry(TranscodeTask task, int attempt) {
         transcodeHandler.markSegmentRetryWait(task.segmentId());
     }
+
+    @Override
+    protected java.util.Map<String, String> mdcContext(TranscodeTask task) {
+        return java.util.Map.of(
+                "jobId", task.jobId().toString(),
+                "segmentId", task.segmentId().toString(),
+                "rung", task.rung());
+    }
 }

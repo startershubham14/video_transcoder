@@ -4,3 +4,8 @@
 spring:
   main:
     web-application-type: none
+
+# Correlate every transcode log line with its job/segment/rung (MDC set by AbstractStageWorker).
+logging:
+  pattern:
+    level: "%5p [job=%X{jobId:-} seg=%X{segmentId:-} rung=%X{rung:-}]"

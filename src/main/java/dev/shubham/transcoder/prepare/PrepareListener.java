@@ -51,6 +51,11 @@ public class PrepareListener extends AbstractStageWorker<PrepareTask> {
         return "prepare";
     }
 
+    @Override
+    protected java.util.Map<String, String> mdcContext(PrepareTask task) {
+        return java.util.Map.of("jobId", task.jobId().toString());
+    }
+
     /** An infra prepare failure exhausted its retries — fail the job so it doesn't hang PREPARING. */
     @Override
     protected void onGiveUp(PrepareTask task, Throwable cause) {

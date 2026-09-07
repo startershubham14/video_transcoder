@@ -42,6 +42,7 @@ class ErrorRoutingTest {
         private final RuntimeException toThrow;
         boolean gaveUp = false;
         Integer retriedAttempt = null;
+        String mdcDuringProcess = null;
 
         TestWorker(RetryPublisher retryPublisher, RuntimeException toThrow) {
             super(new ErrorClassifier(), retryPublisher, props(), "test.queue");
@@ -54,9 +55,15 @@ class ErrorRoutingTest {
 
         @Override
         protected void process(String task) {
+            mdcDuringProcess = org.slf4j.MDC.get("jobId");
             if (toThrow != null) {
                 throw toThrow;
             }
+        }
+
+        @Override
+        protected java.util.Map<String, String> mdcContext(String task) {
+            return java.util.Map.of("jobId", "J1");
         }
 
         @Override
@@ -138,6 +145,16 @@ class ErrorRoutingTest {
         verify(channel).basicNack(TAG, false, false);
         assertTrue(worker.gaveUp);
         assertNull(worker.retriedAttempt); // exhausted → give up, no further retry hook
+    }
+
+    @Test
+    void bindsMdcDuringProcessingAndClearsItAfter() throws IOException {
+        TestWorker worker = new TestWorker(mock(RetryPublisher.class), null);
+
+        worker.run(messageWithAttempts(null), mock(Channel.class));
+
+        assertEquals("J1", worker.mdcDuringProcess); // jobId bound while processing
+        assertNull(org.slf4j.MDC.get("jobId"));       // and cleared afterwards
     }
 
     @Test

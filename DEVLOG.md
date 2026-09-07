@@ -669,6 +669,27 @@ taller than a rung (a 360p clip yields zero rungs → rejected — used 720p).
 
 ---
 
+## 2026-09-07 — Structured MDC logging in workers
+
+**Branch:** `claude/dev-branch-docs-review-6ded45` (published to `dev`)
+
+**Goal:** Correlate worker log lines with the work they're doing (CLAUDE.md logging: always `jobId`,
+plus `segmentId`/`rung` in workers).
+
+**Done:**
+- **`AbstractStageWorker`** gains a `mdcContext(task)` hook (default empty); `execute` binds those SLF4J
+  MDC entries around `process` (and its failure routing) and clears them in a `finally`.
+- Listener overrides: `PrepareListener` → `jobId`; `PackageListener` → `jobId`+`rung`;
+  `TranscodeListener` → `jobId`+`segmentId`+`rung`.
+- Log pattern in `application-worker.yml` / `application-transcode.yml` only (workers), keeping the api
+  pattern clean: `%5p [job=%X{jobId:-} seg=%X{segmentId:-} rung=%X{rung:-}]`.
+- Test: `ErrorRoutingTest.bindsMdcDuringProcessingAndClearsItAfter` (MDC bound during `process`, cleared
+  after). `./mvnw -B verify` green (**75 tests, 0 skipped**).
+
+**Deferred:** per-stage worker metric timers/latency (would need scraping the headless workers).
+
+---
+
 ## Backlog — Observability & operability (later tasks, requested)
 
 **Monitoring dashboard / service status**

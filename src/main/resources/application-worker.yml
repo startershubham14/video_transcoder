@@ -3,3 +3,9 @@
 spring:
   main:
     web-application-type: none
+
+# Correlate every worker log line with the job it is processing (segmentId/rung set by transcode);
+# the AbstractStageWorker MDC hook populates these for the duration of each task.
+logging:
+  pattern:
+    level: "%5p [job=%X{jobId:-} seg=%X{segmentId:-} rung=%X{rung:-}]"
