@@ -51,6 +51,13 @@
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
+        <!-- API docs: auto-generated OpenAPI + Swagger UI from the controllers (api profile). -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>2.6.0</version>
+        </dependency>
+
         <!-- Persistence: PostgreSQL is the source of truth for job/segment state. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

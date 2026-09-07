@@ -85,11 +85,18 @@ Postgres `SELECT status FROM jobs...`. Job → `COMPLETED` when all rungs packag
 - **Reliability** (core + follow-ups done): all stages fail the job on give-up; segments show
   `RETRY_WAIT`/`attempts` on retry; the sweep re-drives stuck `PREPARING`/`QUEUED`/`CONCATENATING`.
   Remaining nicety: DLQ drain/inspection tooling.
+- **Swagger/OpenAPI** live: `springdoc-openapi` serves `/swagger-ui.html` + `/v3/api-docs` on the api
+  (all 4 endpoints auto-discovered); `OpenApiConfig` titles it (`@Profile("api")`).
+- **Graceful shutdown** is configured + live-verified: `server.shutdown=graceful` +
+  `listener.simple.force-stop=false` + compose `stop_grace_period: 40s`; on SIGTERM the RabbitMQ
+  listener drains before the datasource closes (unacked work redelivers to idempotent workers).
 - **Observability follow-ups** (metrics + dashboard + MDC logging done): per-stage worker timers/latency
   (needs worker scraping); alerting.
 - **Scaling demo** (step 9): runner `scripts/bench.py` is built (submits K jobs, times the drain,
   prints a results-table row); **run it** per worker count and paste medians + a chart into the
   README Results section (needs Docker + real clips).
+- **Real-broker error routing**: `ErrorRoutingIntegrationTest` (Testcontainers RabbitMQ) proves
+  permanent→DLQ and transient→retry.delay→origin→DLQ end-to-end against the real topology.
 - **Testcontainers**: `FanInRaceTest` is real (Postgres via Testcontainers) — no premature claim,
   completion claims once, redelivery idempotent-safe. The lost-claim edge it surfaced is now **fixed**:
   `ReconciliationSweep` re-drives all-DONE-but-unpackaged rungs for both PROCESSING (re-claims) and
