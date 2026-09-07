@@ -773,6 +773,31 @@ Uses Awaitility (from spring-boot-starter-test). `./mvnw -B verify` green (**77 
 
 ---
 
+## 2026-09-07 — Gap fixes: config validation, scoped public-read, api healthcheck
+
+**Branch:** `claude/dev-branch-docs-review-6ded45` (published to `dev`)
+
+Fixed three gaps found in the review:
+
+- **#2 Config validation.** `PipelineProperties` is now `@Validated` with JSR-380 constraints
+  (`@NotBlank` mode, `@Positive` sizes/intervals, `@Min(0)` retries, `@NotEmpty List<@Positive Integer>`
+  backoff). A bad env value (e.g. an empty `RETRY_BACKOFF_SECONDS`, which would have broken
+  `AbstractStageWorker.backoffMs`) now fails fast at startup instead of mid-pipeline.
+- **#3 Public-read scoped to outputs.** `minio-setup` switched from a whole-bucket `mc anonymous set
+  download` to `mc anonymous set-json docker/minio/policy.json`: Allow anonymous `GetObject` on
+  `transcoder/*`, **Deny** on `*/source.mp4` and `*/segments/*`. HLS/MP4 outputs stay public (playback);
+  the raw upload + pre-transcode chunks are private. (Policy ARNs assume the default bucket name.)
+- **#7 api healthcheck.** Added an Actuator `/actuator/health` healthcheck to the `api` service (curl is
+  already in the runtime image); `prometheus` now `depends_on: api: condition: service_healthy` so it
+  waits for readiness, not just start.
+
+**Verified live (Docker up):** api healthcheck → `healthy` (also proves the validated config boots);
+`curl` of a real `…/source.mp4` → **403**, of `…/360p.mp4` → **200**. `./mvnw -B verify` green
+(77 tests). No code touched beyond `PipelineProperties`; the source-key scheme is unchanged (the Deny
+patterns target the existing `source.mp4` / `segments/` keys precisely).
+
+---
+
 ## Backlog — Observability & operability (later tasks, requested)
 
 **Monitoring dashboard / service status**
