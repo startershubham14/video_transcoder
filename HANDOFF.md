@@ -82,8 +82,8 @@ Postgres `SELECT status FROM jobs...`. Job → `COMPLETED` when all rungs packag
 - **Reliability** (core + follow-ups done): all stages fail the job on give-up; segments show
   `RETRY_WAIT`/`attempts` on retry; the sweep re-drives stuck `PREPARING`/`QUEUED`/`CONCATENATING`.
   Remaining nicety: DLQ drain/inspection tooling.
-- **Observability follow-ups** (metrics + dashboard done): per-stage worker timers/latency (needs
-  worker scraping); structured MDC logging (jobId/segmentId/rung); alerting.
+- **Observability follow-ups** (metrics + dashboard + MDC logging done): per-stage worker timers/latency
+  (needs worker scraping); alerting.
 - **Scaling demo** (step 9): runner `scripts/bench.py` is built (submits K jobs, times the drain,
   prints a results-table row); **run it** per worker count and paste medians + a chart into the
   README Results section (needs Docker + real clips).

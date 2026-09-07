@@ -4,10 +4,12 @@ import com.rabbitmq.client.Channel;
 import dev.shubham.transcoder.config.PipelineProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.amqp.core.Message;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Template Method for the three stage consumers (prepare / transcode / package). Fixes the
@@ -50,12 +52,15 @@ public abstract class AbstractStageWorker<T> {
      * Manual ack means we ack only after the work and any state commit have completed.
      */
     protected final void execute(T task, Message message, Channel channel, long deliveryTag) {
+        Map<String, String> mdc = mdcContext(task);
+        mdc.forEach(MDC::put);
         try {
             process(task);
             ack(channel, deliveryTag);
-            return;
         } catch (Exception e) {
             routeFailure(task, message, channel, deliveryTag, e);
+        } finally {
+            mdc.keySet().forEach(MDC::remove);
         }
     }
 
@@ -147,5 +152,14 @@ public abstract class AbstractStageWorker<T> {
      */
     protected void onRetry(T task, int attempt) {
         // no-op by default
+    }
+
+    /**
+     * SLF4J MDC entries to bind for the duration of {@link #process} (and its failure routing), so
+     * every log line in this stage is correlated. Default empty; stages override to add {@code jobId}
+     * (and {@code segmentId}/{@code rung} for transcode). Cleared in a {@code finally}.
+     */
+    protected Map<String, String> mdcContext(T task) {
+        return Map.of();
     }
 }

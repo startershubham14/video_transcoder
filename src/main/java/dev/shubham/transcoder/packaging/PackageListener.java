@@ -55,4 +55,9 @@ public class PackageListener extends AbstractStageWorker<PackageTask> {
     protected void onGiveUp(PackageTask task, Throwable cause) {
         packageHandler.failOnGiveUp(task.jobId(), cause.getMessage());
     }
+
+    @Override
+    protected java.util.Map<String, String> mdcContext(PackageTask task) {
+        return java.util.Map.of("jobId", task.jobId().toString(), "rung", task.rung());
+    }
 }
