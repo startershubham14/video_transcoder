@@ -95,6 +95,8 @@ Postgres `SELECT status FROM jobs...`. Job → `COMPLETED` when all rungs packag
 - **Scaling demo** (step 9): runner `scripts/bench.py` is built (submits K jobs, times the drain,
   prints a results-table row); **run it** per worker count and paste medians + a chart into the
   README Results section (needs Docker + real clips).
+- **Real-broker error routing**: `ErrorRoutingIntegrationTest` (Testcontainers RabbitMQ) proves
+  permanent→DLQ and transient→retry.delay→origin→DLQ end-to-end against the real topology.
 - **Testcontainers**: `FanInRaceTest` is real (Postgres via Testcontainers) — no premature claim,
   completion claims once, redelivery idempotent-safe. The lost-claim edge it surfaced is now **fixed**:
   `ReconciliationSweep` re-drives all-DONE-but-unpackaged rungs for both PROCESSING (re-claims) and

@@ -754,6 +754,25 @@ discovered (`/uploads`, `/jobs/{id}`, `/jobs/{id}/complete`, `/jobs/{id}/events`
 
 ---
 
+## 2026-09-07 — Real-broker error-routing integration test
+
+**Branch:** `claude/dev-branch-docs-review-6ded45` (published to `dev`)
+
+**Goal:** The Testing section's "don't mock the broker" must-test — prove the retry/DLQ wiring against
+a real RabbitMQ, not mocks.
+
+**Done:** `ErrorRoutingIntegrationTest` — `@SpringBootTest` slice (nested `@SpringBootConfiguration` +
+`@ImportAutoConfiguration(RabbitAutoConfiguration)` + `@Import(RabbitMqConfig)` so it loads the real
+topology, retry-exchange, and `RabbitAdmin`) against a Testcontainers `rabbitmq:3.13-management-alpine`,
+with a failing test listener on `transcode.queue`:
+- **permanent** (`PrepareRejectedException`) → dead-letters on the first attempt, processed once;
+- **transient** (`IOException`) with cap=2, 1s backoff → cycles through `retry.delay.queue` back to the
+  origin stage queue and dead-letters after the cap (≥3 process calls). Confirms the fanout
+  retry-exchange returns messages to their origin via the retained routing key.
+Uses Awaitility (from spring-boot-starter-test). `./mvnw -B verify` green (**77 tests, 0 skipped**).
+
+---
+
 ## Backlog — Observability & operability (later tasks, requested)
 
 **Monitoring dashboard / service status**
