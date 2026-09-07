@@ -84,8 +84,15 @@ Postgres `SELECT status FROM jobs...`. Job → `COMPLETED` when all rungs packag
   Remaining nicety: DLQ drain/inspection tooling.
 - **Observability follow-ups** (metrics + dashboard done): per-stage worker timers/latency (needs
   worker scraping); structured MDC logging (jobId/segmentId/rung); alerting.
-- **Testcontainers** integration tests (fan-in race, idempotency, error routing — placeholders
-  `@Disabled` today); **scaling benchmark** (`scaling_benchmark.md`); README results/diagrams.
+- **Scaling demo** (step 9): runner `scripts/bench.py` is built (submits K jobs, times the drain,
+  prints a results-table row); **run it** per worker count and paste medians + a chart into the
+  README Results section (needs Docker + real clips).
+- **Testcontainers**: `FanInRaceTest` is real (Postgres via Testcontainers) — no premature claim,
+  completion claims once, redelivery idempotent-safe. The lost-claim edge it surfaced is now **fixed**:
+  `ReconciliationSweep` re-drives all-DONE-but-unpackaged rungs for both PROCESSING (re-claims) and
+  CONCATENATING jobs. `./mvnw verify` = **74 tests, 0 skipped**.
+- **Live smoke/benchmark**: still to run (ClamAV was unhealthy this session); use `scripts/bench.py`.
+- README results/diagrams.
 
 ## Gotchas already hit & fixed (don't reintroduce)
 - ClamAV default StreamMaxLength 25 MB → mounted `docker/clamav/clamd.conf` raising it to ~2 GB.

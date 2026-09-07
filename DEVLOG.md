@@ -534,6 +534,141 @@ verified by the owner in Docker.
 
 ---
 
+## 2026-09-06 — Scaling demo runner (build-order step 9)
+
+**Branch:** `claude/dev-branch-docs-review-6ded45` (published to `dev`)
+
+**Goal:** Provide the tooling to measure "transcode throughput scales with worker count" and make
+`scaling_benchmark.md` runnable (it was method + a pseudocode stub).
+
+**Done:**
+- **`scripts/bench.py`** (stdlib only) — submits K jobs via the thin upload handshake (same flow as
+  `smoke.py`: POST /uploads → PUT presigned parts → POST /complete), starts the clock at first
+  submission, polls `GET /jobs/{id}` until every job is terminal, and prints wall-clock, throughput
+  (jobs/min), failures, and a ready-to-paste results-table row. Flags: `--copies`, `--label`, `--api`,
+  `--poll`, `--timeout`.
+- **`scaling_benchmark.md`**: replaced the runner stub with real `bench.py` usage; method now points at
+  the Grafana dashboard (`pipeline_queue_depth` draining, `rate(pipeline_segments{status="DONE"})`) for
+  a live view while the benchmark runs.
+
+**Key decisions:** a Python driver (not `run.sh`) — cross-platform on the Windows host and reuses the
+existing stdlib handshake; reuses the now-built `GET /jobs/{id}` for the drain poll. `*.mp4/*.mov/*.ts`
+are already git-ignored, so a `samples/` clip set won't be committed.
+
+**Verified:** `python -m py_compile scripts/bench.py` OK. No Java changed → `./mvnw verify` unaffected
+(still 72 tests). The actual benchmark **run** needs Docker + real clips and is the owner's to execute;
+the Results table stays to-be-filled.
+
+**Open follow-ups:** run the benchmark, paste medians + a chart into the README Results section.
+
+---
+
+## 2026-09-06 — Fix: api failed to boot (PipelineMetrics needed RabbitAdmin)
+
+**Branch:** `claude/dev-branch-docs-review-6ded45` (published to `dev`)
+
+**What went wrong:** the observability commit's `PipelineMetrics` injects `RabbitAdmin`, but no such
+bean resolved at runtime → the **api context failed to start** (`APPLICATION FAILED TO START`,
+container Exited(1)). The unit test mocked `RabbitAdmin`, so it passed — a runtime-wiring bug that
+compiled and unit-tested clean. Caught by a real `docker compose up` (Docker was reachable this
+session).
+
+**Fix:** declare an explicit `RabbitAdmin` bean in `RabbitMqConfig` (`new RabbitAdmin(connectionFactory)`)
+rather than relying on Boot's auto-configured one. Natural home — that config already owns the queue/
+exchange topology the admin declares. Updated the class Javadoc accordingly.
+
+**Verified live:** rebuilt the api image and restarted it in the running stack — boots clean
+(`Started TranscoderApplication`), and `GET /actuator/prometheus` serves the gauges
+(`pipeline_jobs{status="COMPLETED"} 5`, `pipeline_segments{status="DONE"} 168`,
+`pipeline_queue_depth{queue=...} 0` while idle). `./mvnw -B verify` still green (72 tests).
+
+**Lesson:** metric/bean wiring that unit tests can't catch needs at least one real boot — prefer a
+lightweight context/smoke check for DI wiring in future.
+
+---
+
+## 2026-09-06 — Testcontainers fan-in tests (Docker was reachable this session)
+
+**Branch:** `claude/dev-branch-docs-review-6ded45` (published to `dev`)
+
+**Goal:** Turn the `@Disabled` `FanInRaceTest` placeholder into real Testcontainers tests of the
+per-rung fan-in (Golden rule 5), now that the Docker daemon was reachable.
+
+**Done:**
+- **`FanInRaceTest`** — `@DataJpaTest` + `@AutoConfigureTestDatabase(replace=NONE)` +
+  `@ImportAutoConfiguration(FlywayAutoConfiguration)` + a Testcontainers `postgres:16-alpine` wired via
+  `@DynamicPropertySource` (no `spring-boot-testcontainers` dep needed). Flyway applies V1+V2; Hibernate
+  validates. `@Transactional(NOT_SUPPORTED)` so setup + worker threads commit independently. Three tests,
+  all green against real Postgres:
+  1. the claim does **not** fire while a rung segment is unfinished, and completing the final segment
+     (markDone+tryClaim in one tx, as `TranscodeHandler` does) claims **exactly once** → CONCATENATING;
+  2. a redelivered `markDone` is idempotent (0 rows, stable key, no duplicate rows);
+  3. a concurrent redelivery storm of the final segment stays consistent (≥1 claim, job CONCATENATING,
+     no duplicate rows).
+- `./mvnw -B verify` now **73 tests, 0 skipped** (was 72 with 2 `@Disabled`).
+
+**Finding (noted, not fixed):** the fan-in relies on the *last committer* observing the whole rung
+DONE. A first, unrealistically-simultaneous test (release N workers with zero work between their
+`markDone` and `tryClaim`, before any commit) produced **0 claims** — a narrow edge where perfectly
+concurrent completion of the final segment(s) could **lose** the packaging trigger, hanging the job in
+PROCESSING. In production, encodes finish staggered over seconds so this is effectively unreachable, and
+a redelivered transcode task re-attempts the claim. **Follow-up option:** extend `ReconciliationSweep`
+to also re-drive PROCESSING jobs whose every segment is DONE (re-attempt the claim) to fully close it.
+The committed tests assert the deterministic, faithful guarantees rather than this timing artifact.
+
+**Also this session:** fixed the api-boot `RabbitAdmin` bug (see prior entry) and verified the running
+stack serves `pipeline_*` metrics. A live smoke/benchmark run is still pending (ClamAV was unhealthy).
+
+---
+
+## 2026-09-06 — Fix the fan-in lost-claim edge in the reconciliation sweep
+
+**Branch:** `claude/dev-branch-docs-review-6ded45` (published to `dev`)
+
+**Goal:** Close the narrow lost-claim edge surfaced by `FanInRaceTest` — a perfectly-simultaneous
+final-segment completion where every worker's `tryClaim` runs before any `markDone` commits can leave
+a rung fully DONE with no claim, hanging the job in `PROCESSING`.
+
+**Fix:** `ReconciliationSweep` now re-drives packaging for stale jobs in **both** `PROCESSING` and
+`CONCATENATING` (was CONCATENATING-only). For each rung that is fully DONE but whose output is missing,
+it runs `tryClaimPackaging` in a transaction (flips `PROCESSING→CONCATENATING`, or re-matches
+`CONCATENATING`) and, on a winning claim (returns 1), re-publishes the `PackageTask`. The all-DONE guard
+still prevents packaging a partial rung. Injected a `TransactionTemplate` for the guarded claim.
+
+**Tests:** `ReconciliationSweepTest` gains `recoversLostClaimForStuckProcessingJob` (PROCESSING job,
+all-DONE rung, missing output → `tryClaimPackaging` → `publishPackage`); the CONCATENATING case now also
+stubs the re-claim. `./mvnw -B verify` green (**74 tests, 0 skipped**).
+
+**Result:** the edge `FanInRaceTest` documented is now recovered by the sweep within
+`RECONCILIATION_STALE_SECONDS`; the design's "at-least-once, idempotent" packaging guarantee holds even
+under the pathological race.
+
+---
+
+## 2026-09-06 — Scaling benchmark run (live, Docker)
+
+**Branch:** `claude/dev-branch-docs-review-6ded45` (published to `dev`)
+
+Ran `scripts/bench.py` against the live stack (api rebuilt with the RabbitAdmin fix; ClamAV `clamd`
+back up) — 6 jobs of a 12s 1280×720 clip (→ 480p+360p rungs), **0 failures** at every worker count.
+This also served as a full live smoke e2e (upload → prepare/scan → transcode → package → COMPLETED,
+status polled via `GET /jobs/{id}`).
+
+| Workers | Wall-clock | Throughput | Speedup |
+|--:|--:|--:|--:|
+| 1 | 2.30 min | 2.61 jobs/min | 1.00× |
+| 2 | 0.65 min | 9.23 jobs/min | 3.54× |
+| 4 | 1.26 min | 4.77 jobs/min | 1.83× |
+
+**Finding:** throughput climbs 1→2 then **regresses at 4** — the predicted plateau: on a laptop with all
+infra containers co-resident, 4 FFmpeg workers oversubscribe the CPU. Single-run + tiny (overhead-bound)
+clip, so noisy (1→2 looks super-linear from warm-up). Recorded honestly in `scaling_benchmark.md` with
+the caveats + how to get a rigorous curve (heavier clip, 3× median, isolate workers). Gotchas hit:
+MSYS mangles `/tmp` container paths (use `MSYS_NO_PATHCONV=1`); `FixedLadderPolicy` needs a source
+taller than a rung (a 360p clip yields zero rungs → rejected — used 720p).
+
+---
+
 ## Backlog — Observability & operability (later tasks, requested)
 
 **Monitoring dashboard / service status**

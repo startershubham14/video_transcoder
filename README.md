@@ -175,6 +175,13 @@ API) and **Grafana** (`:3000`, anonymous) with a provisioned dashboard — scale
 (`docker compose up --scale transcode-worker=5`) and watch the queue depth drain and the
 segments-completed rate climb.
 
+### Scaling
+
+The core claim — transcode throughput scales with worker count — is measured by
+[`scaling_benchmark.md`](scaling_benchmark.md) using `scripts/bench.py`: bring the transcode tier up
+at a given size (`docker compose up -d --scale transcode-worker=W`), submit K jobs, and time the
+drain. Watch it live on the Grafana dashboard. (Results table: to be filled in after a run.)
+
 ## Documentation
 
 - [`docs/design-notes.md`](docs/design-notes.md) — the **why**: project concept, stack

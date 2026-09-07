@@ -12,6 +12,7 @@ import dev.shubham.transcoder.transcode.SegmentRepository;
 import dev.shubham.transcoder.transcode.SegmentStatus;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.transaction.PlatformTransactionManager;
 
 import java.time.Instant;
 import java.util.List;
@@ -41,7 +42,8 @@ class ReconciliationSweepTest {
     private final BlobStore blobStore = mock(BlobStore.class);
 
     private ReconciliationSweep sweep() {
-        return new ReconciliationSweep(jobRepo, segRepo, publisher, props(), packagerFactory, blobStore);
+        return new ReconciliationSweep(jobRepo, segRepo, publisher, props(), packagerFactory, blobStore,
+                mock(PlatformTransactionManager.class));
     }
 
     private static Segment segment(UUID jobId, String rung, SegmentStatus status) {
@@ -90,9 +92,34 @@ class ReconciliationSweepTest {
         when(packager.outputKey(jobId, "720p")).thenReturn(jobId + "/720p.mp4");
         when(packagerFactory.forMode(any())).thenReturn(packager);
         when(blobStore.exists(jobId + "/720p.mp4")).thenReturn(false); // output missing → re-drive
+        when(segRepo.tryClaimPackaging(jobId, "720p")).thenReturn(1); // re-claim succeeds
 
         sweep().sweep();
 
+        verify(publisher).publishPackage(new PackageTask(jobId, "720p"));
+    }
+
+    @Test
+    void recoversLostClaimForStuckProcessingJob() {
+        // The narrow lost-claim edge: job still PROCESSING though a rung is fully DONE with no output.
+        UUID jobId = UUID.randomUUID();
+        Job job = mock(Job.class);
+        when(job.getId()).thenReturn(jobId);
+        when(jobRepo.findByStatusAndUpdatedAtBefore(eq(JobStatus.PROCESSING), any(Instant.class)))
+                .thenReturn(List.of(job));
+        when(segRepo.findDistinctRungs(jobId)).thenReturn(List.of("720p"));
+        Segment done720 = segment(jobId, "720p", SegmentStatus.DONE);
+        when(segRepo.findByJobIdAndRung(jobId, "720p")).thenReturn(List.of(done720));
+
+        var packager = mock(dev.shubham.transcoder.packaging.Packager.class);
+        when(packager.outputKey(jobId, "720p")).thenReturn(jobId + "/720p.mp4");
+        when(packagerFactory.forMode(any())).thenReturn(packager);
+        when(blobStore.exists(jobId + "/720p.mp4")).thenReturn(false);
+        when(segRepo.tryClaimPackaging(jobId, "720p")).thenReturn(1); // flips PROCESSING→CONCATENATING
+
+        sweep().sweep();
+
+        verify(segRepo).tryClaimPackaging(jobId, "720p");
         verify(publisher).publishPackage(new PackageTask(jobId, "720p"));
     }
 

@@ -17,9 +17,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -44,19 +47,22 @@ public class ReconciliationSweep {
     private final PipelineProperties pipelineProperties;
     private final PackagerFactory packagerFactory;
     private final BlobStore blobStore;
+    private final TransactionTemplate transactionTemplate;
 
     public ReconciliationSweep(JobRepository jobRepository,
                                SegmentRepository segmentRepository,
                                TaskPublisher taskPublisher,
                                PipelineProperties pipelineProperties,
                                PackagerFactory packagerFactory,
-                               BlobStore blobStore) {
+                               BlobStore blobStore,
+                               PlatformTransactionManager transactionManager) {
         this.jobRepository = jobRepository;
         this.segmentRepository = segmentRepository;
         this.taskPublisher = taskPublisher;
         this.pipelineProperties = pipelineProperties;
         this.packagerFactory = packagerFactory;
         this.blobStore = blobStore;
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
     @Scheduled(fixedDelayString = "${pipeline.reconciliation-interval-ms:30000}")
@@ -80,19 +86,31 @@ public class ReconciliationSweep {
                     new TranscodeTask(segment.getJobId(), segment.getId(), segment.getRung()));
         }
 
-        // Stuck CONCATENATING: a PackageTask was lost. Re-publish for any rung whose segments are all
-        // DONE but whose packaged output is missing (the all-DONE guard avoids packaging a partial rung).
-        List<Job> staleConcatenating = jobRepository.findByStatusAndUpdatedAtBefore(JobStatus.CONCATENATING, cutoff);
-        if (!staleConcatenating.isEmpty()) {
+        // Stuck packaging: a rung is fully DONE but its packaged output is missing. Two causes, both
+        // recovered the same way — re-claim then re-publish:
+        //   * job still PROCESSING: the fan-in claim itself was lost (a perfectly-simultaneous final
+        //     completion where every worker's tryClaim ran before any markDone committed);
+        //   * job already CONCATENATING: the claim ran but the PackageTask publish was lost.
+        // tryClaimPackaging flips PROCESSING→CONCATENATING (or re-matches CONCATENATING), returning 1 in
+        // either recoverable case; the all-DONE guard avoids packaging a partial rung.
+        List<Job> stalePackaging = new ArrayList<>();
+        stalePackaging.addAll(jobRepository.findByStatusAndUpdatedAtBefore(JobStatus.PROCESSING, cutoff));
+        stalePackaging.addAll(jobRepository.findByStatusAndUpdatedAtBefore(JobStatus.CONCATENATING, cutoff));
+        if (!stalePackaging.isEmpty()) {
             Packager packager = packagerFactory.forMode(OutputMode.fromConfig(pipelineProperties.outputMode()));
-            for (Job job : staleConcatenating) {
+            for (Job job : stalePackaging) {
                 for (String rung : segmentRepository.findDistinctRungs(job.getId())) {
                     List<Segment> segments = segmentRepository.findByJobIdAndRung(job.getId(), rung);
                     boolean allDone = !segments.isEmpty()
                             && segments.stream().allMatch(s -> s.getStatus() == SegmentStatus.DONE);
                     if (allDone && !blobStore.exists(packager.outputKey(job.getId(), rung))) {
-                        log.warn("[reconcile] re-publishing package for stuck job {} rung {}", job.getId(), rung);
-                        taskPublisher.publishPackage(new PackageTask(job.getId(), rung));
+                        int claimed = transactionTemplate.execute(
+                                status -> segmentRepository.tryClaimPackaging(job.getId(), rung));
+                        if (claimed == 1) {
+                            log.warn("[reconcile] re-claiming + re-publishing package for stuck job {} rung {}",
+                                    job.getId(), rung);
+                            taskPublisher.publishPackage(new PackageTask(job.getId(), rung));
+                        }
                     }
                 }
             }
