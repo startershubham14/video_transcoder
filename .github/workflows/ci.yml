@@ -35,3 +35,12 @@ jobs:
           name: test-reports
           path: '**/target/surefire-reports/*.xml'
           if-no-files-found: ignore
+
+      # JaCoCo coverage report (generated on `verify`) — browse the HTML from the run's artifacts.
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: target/site/jacoco
+          if-no-files-found: ignore

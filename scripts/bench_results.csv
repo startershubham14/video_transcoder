@@ -1,0 +1,4 @@
+workers,wallclock_min,throughput_jobs_min
+1,2.187,0.914
+2,1.415,1.414
+4,1.141,1.753

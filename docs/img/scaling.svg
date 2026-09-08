@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="420" viewBox="0 0 720 420" font-family="-apple-system,Segoe UI,Roboto,sans-serif">
+<rect x="0.5" y="0.5" width="719" height="419" rx="10" fill="#ffffff" stroke="#d0d7de"/>
+<text x="64" y="32" font-size="17" font-weight="600" fill="#1f2328">Transcode throughput scales with worker count</text>
+<text x="64" y="50" font-size="12" fill="#656d76">Throughput (jobs/min) vs transcode workers</text>
+<line x1="64" y1="348.0" x2="696" y2="348.0" stroke="#eaeef2"/>
+<text x="56" y="352.0" font-size="11" fill="#656d76" text-anchor="end">0</text>
+<line x1="64" y1="291.2" x2="696" y2="291.2" stroke="#eaeef2"/>
+<text x="56" y="295.2" font-size="11" fill="#656d76" text-anchor="end">1</text>
+<line x1="64" y1="234.4" x2="696" y2="234.4" stroke="#eaeef2"/>
+<text x="56" y="238.4" font-size="11" fill="#656d76" text-anchor="end">2</text>
+<line x1="64" y1="177.6" x2="696" y2="177.6" stroke="#eaeef2"/>
+<text x="56" y="181.6" font-size="11" fill="#656d76" text-anchor="end">3</text>
+<line x1="64" y1="120.8" x2="696" y2="120.8" stroke="#eaeef2"/>
+<text x="56" y="124.8" font-size="11" fill="#656d76" text-anchor="end">3</text>
+<line x1="64" y1="64.0" x2="696" y2="64.0" stroke="#eaeef2"/>
+<text x="56" y="68.0" font-size="11" fill="#656d76" text-anchor="end">4</text>
+<polyline points="169.3,286.3 380.0,224.5 590.7,101.0" fill="none" stroke="#8250df" stroke-width="2" stroke-dasharray="6 5" opacity="0.85"/>
+<circle cx="169.3" cy="286.3" r="3" fill="#8250df"/>
+<circle cx="380.0" cy="224.5" r="3" fill="#8250df"/>
+<circle cx="590.7" cy="101.0" r="3" fill="#8250df"/>
+<rect x="124.3" y="286.3" width="90.0" height="61.7" rx="4" fill="#2f81f7"/>
+<rect x="124.3" y="286.3" width="90.0" height="4" rx="2" fill="#1f6feb"/>
+<text x="169.3" y="278.3" font-size="13" font-weight="600" fill="#1f2328" text-anchor="middle">0.9</text>
+<text x="169.3" y="262.3" font-size="11" fill="#656d76" text-anchor="middle">1.00×</text>
+<text x="169.3" y="370.0" font-size="13" fill="#1f2328" text-anchor="middle">1</text>
+<rect x="335.0" y="252.5" width="90.0" height="95.5" rx="4" fill="#2f81f7"/>
+<rect x="335.0" y="252.5" width="90.0" height="4" rx="2" fill="#1f6feb"/>
+<text x="380.0" y="244.5" font-size="13" font-weight="600" fill="#1f2328" text-anchor="middle">1.4</text>
+<text x="380.0" y="228.5" font-size="11" fill="#656d76" text-anchor="middle">1.55×</text>
+<text x="380.0" y="370.0" font-size="13" fill="#1f2328" text-anchor="middle">2</text>
+<rect x="545.7" y="229.6" width="90.0" height="118.4" rx="4" fill="#2f81f7"/>
+<rect x="545.7" y="229.6" width="90.0" height="4" rx="2" fill="#1f6feb"/>
+<text x="590.7" y="221.6" font-size="13" font-weight="600" fill="#1f2328" text-anchor="middle">1.8</text>
+<text x="590.7" y="205.6" font-size="11" fill="#656d76" text-anchor="middle">1.92×</text>
+<text x="590.7" y="370.0" font-size="13" fill="#1f2328" text-anchor="middle">4</text>
+<text x="380.0" y="390" font-size="12" fill="#656d76" text-anchor="middle">transcode workers</text>
+<rect x="64" y="393" width="14" height="10" rx="2" fill="#2f81f7"/>
+<text x="84" y="402" font-size="11" fill="#656d76">measured</text>
+<line x1="156" y1="398" x2="182" y2="398" stroke="#8250df" stroke-width="2" stroke-dasharray="6 5"/>
+<text x="188" y="402" font-size="11" fill="#656d76">ideal linear</text>
+</svg>
