@@ -825,6 +825,52 @@ install them in CI; a Testcontainers ClamAV test. Deferred.
 
 ---
 
+## 2026-09-08 — Resume polish: Results chart, Highlights, badges, coverage
+
+**Branch:** `claude/dev-branch-docs-review-6ded45`. **Goal:** make an already-solid backend *read* as
+strong at a skim — a real scaling chart (not a caveated table), a Highlights section that names the
+distributed-systems wins with code+test links, CI/test badges, and coverage. Presentation, not new
+runtime behavior.
+
+**Chart tooling (stdlib only, matching `bench.py`).**
+- `scripts/plot.py` renders `docs/img/scaling.svg` (workers vs throughput bars + an ideal-linear dashed
+  reference, so the CPU-bound plateau is visible) from a machine-readable CSV. SVG so it needs no
+  plotting dependency and stays crisp; committed so the README renders without a build step.
+- `scripts/bench.py` now `--runs N` (repeats the submit/drain cycle and reports the **median**
+  wall-clock — the noise reduction the method always called for) and appends each result to
+  `scripts/bench_results.csv` (`--results`/`--no-write` to steer). Refactored the drain into a reusable
+  `drain()`; added `append_result()`.
+- **Ran the rigorous benchmark** (Docker was up). The old preliminary curve *regressed* at 4 workers
+  because it was overhead-bound (12s 720p clip, single runs) and the workers were uncapped, so on a
+  12-core box one FFmpeg spread across most cores and adding workers oversubscribed. Fixed both:
+  generated a **24s 1080p high-detail clip** (3 rungs × 3 segments of real encode work per job; upload
+  ~1s → transcode-bound) and added **`docker-compose.bench.yml`** capping each transcode worker to
+  **2 CPUs** (1→2→4 workers ≈ 2→4→8 cores, under the 12-core ceiling). Result (median of 3, 0 failures):
+  **0.91 → 1.41 → 1.75 jobs/min = 1.00× / 1.55× / 1.92×** — monotonic, sub-linear (Amdahl: only
+  transcode parallelizes; prepare + concat are serial). Chart regenerated from the real CSV; the
+  regression story is gone.
+
+**README.**
+- Badges: CI status (GitHub Actions), tests (83 passing), integration stack (Postgres · RabbitMQ ·
+  MinIO), Java 21, Spring Boot 3.3.
+- New **`## Highlights — the hard problems`** table: fan-in atomic claim, idempotent workers,
+  enqueue-after-commit + reconciliation, transient/permanent routing → backoff/DLQ, graceful shutdown,
+  admission control, abandoned-upload reaper, OCP packaging, real S3 adapter — each linked to code
+  **and** its test.
+- New **`## Results — horizontal scaling`** with the embedded chart + the regenerate recipe; the old
+  nested `### Scaling` prose is now a one-line pointer.
+- New **`## Demo`** placeholder (commented-out `docs/img/demo.gif` embed — no broken image until the
+  GIF exists) + `docs/img/README.md` with the recording/ffmpeg-to-GIF recipe.
+
+**Coverage.** Added the JaCoCo plugin (parent-managed version; `prepare-agent` + `report` on `verify` →
+`target/site/jacoco`); CI uploads it as a `coverage-report` artifact. Verified the pom resolves and
+`test-compile` is clean locally; full `verify` (Testcontainers) runs in CI.
+
+**Not done (needs the user):** recording `demo.gif` (recipe in `docs/img/README.md`) — the embed is
+scaffolded (commented out, so no broken image) and one drop-in away. The scaling chart is now real.
+
+---
+
 ## Backlog — Observability & operability (later tasks, requested)
 
 **Monitoring dashboard / service status**

@@ -54,3 +54,10 @@ Thumbs.db
 # ---- Logs ----
 *.log
 logs/
+
+# ---- Working docs: live on the dev branch, kept OFF main ----
+# Tracked on dev (this rule is a no-op for already-tracked files there). On main they are
+# git-rm'd once; this rule then stops a promote from re-adding them.
+CLAUDE.md
+DEVLOG.md
+HANDOFF.md

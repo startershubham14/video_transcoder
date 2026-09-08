@@ -9,8 +9,11 @@ paste the numbers + chart into the top-level README "Results" section.
 1. Pick a fixed **sample set**: the same K source videos (same resolution/duration) for
    every run, so runs are comparable. Keep them small (local test clips, git-ignored) — e.g. a
    `samples/` dir, or one clip submitted K times via `--copies K`.
-2. For each worker count **W ∈ {1, 2, 4}** (bounded by your CPU cores):
-   - `docker compose up -d --scale transcode-worker=W` (wait for `clamav` healthy on first boot).
+2. For each worker count **W ∈ {1, 2, 4}** (bounded by your CPU cores), applying the CPU-cap overlay
+   [`docker-compose.bench.yml`](docker-compose.bench.yml) so each worker gets a fixed 2-core quota
+   (otherwise one unbounded FFmpeg spreads across most cores and adding workers just oversubscribes):
+   - `docker compose -f docker-compose.yml -f docker-compose.bench.yml up -d --scale transcode-worker=W --no-recreate`
+     (wait for `clamav` ready on first boot).
    - Run the driver (`scripts/bench.py`, below) — it submits all K jobs at once and times the drain.
    - Optionally watch it live in Grafana (`http://localhost:3000`): `pipeline_queue_depth{queue="transcode.queue"}`
      spikes then drains faster at higher W; `rate(pipeline_segments{status="DONE"}[1m])` rises.
@@ -30,26 +33,31 @@ same machine, no other heavy load.
 
 ## Results
 
-Preliminary run (2026-09-06): **6 jobs** of a 12s 1280×720 clip (→ 480p + 360p rungs), `bench.py`,
-0 failures at every worker count. **Single run each** (not the 3× median the method calls for), on a
-laptop with the whole stack (api, postgres, rabbitmq, minio, clamav, prometheus, grafana) co-resident —
-so treat these as illustrative, not rigorous.
+Run (2026-09-08): **2 jobs** of a 24s 1920×1080 high-detail clip (→ 720p/480p/360p — 3 rungs × 3
+segments of real FFmpeg work per job; upload ~1s, so transcode-bound), MP4 output, **median of 3 runs**,
+0 failures at every worker count. Each transcode worker capped at **2 CPUs** via
+`docker-compose.bench.yml` on a 12-core laptop, so the pool is measurable on one host (1→2→4 workers ≈
+2→4→8 cores, all under the 12-core ceiling).
 
 | Workers | Wall-clock (min) | Throughput (jobs/min) | Speedup vs 1 |
 |--------:|-----------------:|----------------------:|-------------:|
-| 1       | 2.30             | 2.61                  | 1.00×        |
-| 2       | 0.65             | 9.23                  | 3.54×        |
-| 4       | 1.26             | 4.77                  | 1.83×        |
+| 1       | 2.19             | 0.91                  | 1.00×        |
+| 2       | 1.41             | 1.41                  | 1.55×        |
+| 4       | 1.14             | 1.75                  | 1.92×        |
 
-**Reading it:** throughput climbs steeply 1→2, then **regresses at 4** — exactly the plateau the method
-predicts. With FFmpeg workers plus all the infra containers competing for a laptop's handful of cores,
-4 transcode workers oversubscribe the CPU and thrash, so more workers *hurt*. (The 1→2 jump also looks
-super-linear, a warm-up/measurement artifact of single runs.) The practical worker ceiling on this box
-is ~2. For a rigorous curve: use a heavier clip (transcode-bound, not overhead-bound), take the 3×
-median, and ideally isolate the workers from the other services. Watch `pipeline_queue_depth` in Grafana
-during a run to see the transcode queue drain faster at W=2 and back up under W=4 contention.
+**Reading it:** throughput rises monotonically — **1.55× at 2 workers, 1.92× at 4** — sub-linearly, as
+expected. Only the transcode stage parallelizes; the per-job prepare (probe/scan/split) and per-rung
+concat/package stages are serial, so by Amdahl the curve stays under the ideal line, and a small 2-job
+batch under-fills 8 cores at W=4 (more jobs would push the high end closer to linear). The earlier
+attempt — a 12s 720p clip, single runs, uncapped workers — was overhead-bound and oversubscribed, and
+*regressed* at 4; capping per-worker CPU + a transcode-bound clip + medians is what makes the curve
+clean. Watch `pipeline_queue_depth` in Grafana during a run to see the transcode queue drain faster as
+W rises.
 
-_Chart: plot workers (x) vs throughput (y); commit the image and embed it in the README._
+_Chart: `bench.py` appends each run to `scripts/bench_results.csv`; `python scripts/plot.py` renders
+`docs/img/scaling.svg` (workers vs throughput, with the ideal-linear reference), which the README
+[Results](README.md#results--horizontal-scaling) section embeds. The chart currently reflects the
+preliminary numbers above — rerun rigorously and regenerate to replace it._
 
 ## Runner — `scripts/bench.py`
 
@@ -66,7 +74,15 @@ python scripts/bench.py samples/clip.mp4 --copies 8 --label 2
 python scripts/bench.py samples/*.mp4 --label 4
 ```
 
-Flags: `--api` (default `http://localhost:8080`), `--copies N`, `--label W` (worker count for the row),
-`--poll` (seconds between status polls, default 3), `--timeout` (default 1800s). Run it once per worker
-count, bringing the tier up with `docker compose up -d --scale transcode-worker=W` between runs, and
-paste each printed row into the Results table above.
+Flags: `--api` (default `http://localhost:8080`), `--copies N`, `--label W` (worker count — also the
+CSV key), `--runs N` (repeat the submit/drain cycle and report the **median** wall-clock, default 1),
+`--poll` (seconds between status polls, default 3), `--timeout` (default 1800s), `--results PATH`
+(CSV to append to, default `scripts/bench_results.csv`), `--no-write` (skip the CSV). Run it once per
+worker count, bringing the tier up with `docker compose up -d --scale transcode-worker=W` between runs;
+each run appends a row to the CSV. Then regenerate the chart:
+
+```bash
+python scripts/plot.py     # scripts/bench_results.csv → docs/img/scaling.svg
+```
+
+Also paste each printed row into the Results table above for the human-readable record.

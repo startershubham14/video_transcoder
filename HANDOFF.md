@@ -92,9 +92,13 @@ Postgres `SELECT status FROM jobs...`. Job → `COMPLETED` when all rungs packag
   listener drains before the datasource closes (unacked work redelivers to idempotent workers).
 - **Observability follow-ups** (metrics + dashboard + MDC logging done): per-stage worker timers/latency
   (needs worker scraping); alerting.
-- **Scaling demo** (step 9): runner `scripts/bench.py` is built (submits K jobs, times the drain,
-  prints a results-table row); **run it** per worker count and paste medians + a chart into the
-  README Results section (needs Docker + real clips).
+- **Scaling demo** (step 9): `scripts/bench.py` now does `--runs N` (median) and appends to
+  `scripts/bench_results.csv`; `scripts/plot.py` renders `docs/img/scaling.svg`, embedded in the new
+  README **Results** section. **Benchmark run for real** (2026-09-08): 24s 1080p clip, each worker
+  capped at 2 CPUs (`docker-compose.bench.yml`), median of 3 → **0.91/1.41/1.75 jobs/min
+  (1.00×/1.55×/1.92×)**, monotonic, 0 failures. The old regression was overhead-bound + uncapped;
+  fixed. To re-run: `docker compose -f docker-compose.yml -f docker-compose.bench.yml up -d --scale
+  transcode-worker=W --no-recreate` then `bench.py … --runs 3` then `plot.py`.
 - **Reaper aborts abandoned uploads**: `jobs.upload_id` persisted (V3); `UploadTimeoutReaper` aborts the
   dangling multipart on expiry (best-effort). **S3 adapter** now has a Testcontainers MinIO integration
   test (`S3BlobStoreIntegrationTest`: upload/download/presign/multipart round-trip). ffmpeg/ClamAV
@@ -109,7 +113,10 @@ Postgres `SELECT status FROM jobs...`. Job → `COMPLETED` when all rungs packag
   `ReconciliationSweep` re-drives all-DONE-but-unpackaged rungs for both PROCESSING (re-claims) and
   CONCATENATING jobs. `./mvnw verify` = **74 tests, 0 skipped**.
 - **Live smoke/benchmark**: still to run (ClamAV was unhealthy this session); use `scripts/bench.py`.
-- README results/diagrams.
+- **README (resume polish)**: badges (CI/tests/stack), a **Highlights** table (each hard problem →
+  code+test), the chart-led **Results** section (real benchmark numbers + `docs/img/scaling.svg`), and
+  a **Demo** placeholder are in. Remaining: record `docs/img/demo.gif` (recipe in `docs/img/README.md`)
+  and uncomment the embed. JaCoCo coverage runs in CI (uploaded as an artifact).
 
 ## Gotchas already hit & fixed (don't reintroduce)
 - ClamAV default StreamMaxLength 25 MB → mounted `docker/clamav/clamd.conf` raising it to ~2 GB.

@@ -1,0 +1,13 @@
+# Benchmark-only overlay for the scaling demo. Apply alongside the base compose:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.bench.yml up -d --scale transcode-worker=W
+#
+# Why: on a single multi-core host, one FFmpeg (libx264, no -threads cap) can spread across most of
+# the cores, so "add more workers" oversubscribes instead of scaling. Capping each transcode worker
+# to a fixed CPU quota makes the pool measurable — N workers ≈ N × quota cores of throughput — which
+# is how you'd actually bin-pack bounded workers onto a host or cluster. It also isolates the transcode
+# tier from the other services during a run, per scaling_benchmark.md.
+services:
+  transcode-worker:
+    cpus: "2.0"        # each transcode worker gets 2 cores; scale the count to fill the box
+    mem_limit: 1g
