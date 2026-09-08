@@ -55,9 +55,9 @@ Thumbs.db
 *.log
 logs/
 
-# ---- Working docs: live on the dev branch, kept OFF main ----
-# Tracked on dev (this rule is a no-op for already-tracked files there). On main they are
-# git-rm'd once; this rule then stops a promote from re-adding them.
+# ---- Working docs: local-only, untracked on every branch ----
+# Kept on disk as working notes but out of git, so a file that changes locally but is absent
+# on main can't cause modify/delete merge conflicts. Untracked via `git rm --cached`.
 CLAUDE.md
 DEVLOG.md
 HANDOFF.md
